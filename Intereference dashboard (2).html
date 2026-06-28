@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TANFINET v7 — Fiber Intelligence Platform</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap');
+:root{
+  --bg:#060b13;--panel:#0b1322;--panel2:#09101f;--border:#172035;
+  --accent:#00e5ff;--danger:#ff3333;--warn:#ff9500;--safe:#00e676;
+  --info:#64b5f6;--muted:#3a5068;--text:#adc8e8;--purple:#aa44ff;
+  --mono:'Share Tech Mono',monospace;--sans:'Barlow',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── HEADER ── */
+header{height:52px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0;z-index:1000;}
+.logo{font-family:var(--mono);font-size:15px;color:var(--accent);letter-spacing:3px;display:flex;align-items:center;gap:8px;}
+.pdot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.mode-tabs{display:flex;gap:2px;background:var(--panel2);border-radius:5px;padding:3px;border:1px solid var(--border);}
+.tab{padding:5px 13px;border-radius:4px;cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:1px;color:var(--muted);border:none;background:transparent;transition:all .2s;}
+.tab.active{background:var(--accent);color:var(--bg);}
+.hcounters{display:flex;gap:13px;}
+.hcnt{text-align:center;}
+.hcnt-val{font-family:var(--mono);font-size:17px;line-height:1;}
+.hcnt-val.d{color:var(--danger)}.hcnt-val.w{color:var(--warn)}.hcnt-val.s{color:var(--safe)}.hcnt-val.a{color:var(--accent);}
+.hcnt-lbl{font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:2px;}
+.conn-pill{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:12px;border:1px solid var(--border);}
+.cdot{width:7px;height:7px;border-radius:50%;}
+.cdot.err{background:var(--danger);animation:blink .8s infinite;}
+.cdot.ok{background:var(--safe);box-shadow:0 0 5px var(--safe);}
+
+/* ── BODY ── */
+.body{display:flex;flex:1;overflow:hidden;}
+
+/* ── SIDEBAR ── */
+.sidebar{width:272px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;z-index:500;}
+.sb-block{padding:10px 13px;border-bottom:1px solid var(--border);}
+.sb-title{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:7px;}
+
+.tile-row{display:flex;gap:3px;}
+.tile-btn{flex:1;padding:4px 3px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--mono);font-size:8px;cursor:pointer;transition:all .15s;letter-spacing:.3px;text-align:center;}
+.tile-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(0,229,255,0.07);}
+.tile-btn:hover:not(.active){color:var(--text);}
+
+.tog-row{display:flex;align-items:center;justify-content:space-between;padding:3px 0;cursor:pointer;}
+.tog-lbl{display:flex;align-items:center;gap:7px;font-size:11px;}
+.tdot{width:8px;height:8px;border-radius:50%;}
+.sw{width:30px;height:15px;background:var(--border);border-radius:8px;position:relative;border:none;cursor:pointer;transition:background .2s;}
+.sw.on{background:var(--accent);}
+.sw.on.weather{background:#4a90d9;}
+.sw.on.traffic{background:#ff6b35;}
+.sw::after{content:'';position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:50%;background:#fff;transition:left .2s;}
+.sw.on::after{left:17px;}
+
+/* Weather panel */
+.weather-panel{padding:8px 13px;border-bottom:1px solid var(--border);}
+.weather-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:5px;}
+.wx-card{background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:6px 8px;}
+.wx-icon{font-size:18px;line-height:1;}
+.wx-val{font-family:var(--mono);font-size:13px;color:var(--accent);margin-top:2px;}
+.wx-lbl{font-size:9px;color:var(--muted);margin-top:1px;}
+.wx-status{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);margin-top:6px;}
+.wx-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+
+/* Risk panels */
+#panel-analyze{display:flex;flex-direction:column;flex:1;overflow:hidden;}
+.risk-scroll{flex:1;overflow-y:auto;padding:5px;}
+.risk-scroll::-webkit-scrollbar{width:3px}
+.risk-scroll::-webkit-scrollbar-thumb{background:var(--border)}
+.risk-row{display:flex;align-items:center;gap:5px;padding:4px;border-radius:3px;cursor:pointer;border-bottom:1px solid rgba(23,32,53,.5);transition:background .1s;font-size:10px;}
+.risk-row:hover{background:rgba(0,229,255,.04);}
+.rr-rank{font-family:var(--mono);font-size:8px;color:var(--muted);width:14px;flex-shrink:0;}
+.rr-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rr-bw{width:44px;height:4px;background:var(--border);border-radius:2px;flex-shrink:0;overflow:hidden;}
+.rr-bf{height:100%;border-radius:2px;}
+.rr-sc{font-family:var(--mono);font-size:9px;width:24px;text-align:right;flex-shrink:0;}
+.rr-bd{font-family:var(--mono);font-size:7px;padding:1px 3px;border-radius:2px;flex-shrink:0;}
+.rr-bd.H{background:rgba(255,51,51,.18);color:var(--danger);}
+.rr-bd.M{background:rgba(255,149,0,.18);color:var(--warn);}
+.rr-bd.L{background:rgba(0,230,118,.18);color:var(--safe);}
+.rr-bd.P{background:rgba(206,147,216,.22);color:#ce93d8;animation:predPulse 2s infinite;}
+@keyframes predPulse{0%,100%{box-shadow:0 0 0 0 rgba(206,147,216,.4)}50%{box-shadow:0 0 0 4px rgba(206,147,216,0)}}
+
+/* ── PROPAGATION BOX (sidebar) ── */
+.prop-box{margin:6px 11px 2px;background:rgba(206,147,216,.06);border:1px solid rgba(206,147,216,.28);border-radius:4px;padding:7px 9px;font-size:11px;line-height:1.7;display:none;}
+.prop-box.show{display:block;}
+.prop-box-title{font-family:var(--mono);font-size:8px;color:#ce93d8;letter-spacing:1.5px;margin-bottom:4px;}
+
+/* ── PROPAGATION DECAY PANEL (right panel) ── */
+.decay-bar{height:2px;background:var(--border);border-radius:1px;margin-top:3px;overflow:hidden;}
+.decay-fill{height:100%;background:#ce93d8;border-radius:1px;transition:width 1s linear;}
+.prop-zone-row{display:flex;align-items:center;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(23,32,53,.4);}
+
+/* ── FILTER PILL FOR PREDICTED ── */
+.fp.pred.active{border-color:#ce93d8;color:#ce93d8;}
+
+/* ── PREDICTED COUNTER ── */
+.hcnt-val.p{color:#ce93d8;}
+.slider-wrap{padding:8px 12px;border-top:1px solid var(--border);}
+.sl-row{margin-bottom:7px;}
+.sl-hdr{display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;}
+.sl-val{font-family:var(--mono);color:var(--accent);}
+input[type=range]{width:100%;height:3px;-webkit-appearance:none;background:var(--border);border-radius:2px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:var(--accent);box-shadow:0 0 4px var(--accent);}
+.recalc{width:100%;margin-top:5px;padding:5px;background:transparent;border:1px solid var(--accent);color:var(--accent);font-family:var(--mono);font-size:10px;letter-spacing:1px;border-radius:3px;cursor:pointer;transition:all .2s;}
+.recalc:hover{background:var(--accent);color:var(--bg);}
+.rec-box{margin:7px 11px;background:rgba(255,51,51,.07);border:1px solid rgba(255,51,51,.2);border-radius:4px;padding:7px 9px;font-size:11px;line-height:1.8;}
+
+#panel-monitor{display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0;}
+.feed-hdr{padding:9px 13px 5px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.filter-pills{display:flex;gap:4px;}
+.fp{font-family:var(--mono);font-size:8px;padding:2px 6px;border-radius:10px;border:1px solid var(--border);cursor:pointer;color:var(--muted);background:transparent;transition:all .15s;}
+.fp.active{border-color:var(--accent);color:var(--accent);}
+.fp.crit.active{border-color:var(--danger);color:var(--danger);}
+.fp.warn.active{border-color:var(--warn);color:var(--warn);}
+.alert-feed{flex:1;min-height:0;overflow-y:auto;padding:5px;display:flex;flex-direction:column;gap:4px;}
+.alert-feed::-webkit-scrollbar{width:5px}
+.alert-feed::-webkit-scrollbar-track{background:rgba(0,0,0,0.25);border-radius:3px}
+.alert-feed::-webkit-scrollbar-thumb{background:#2a4060;border-radius:3px}
+.alert-feed::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+.ac{background:var(--panel2);border:1px solid var(--border);border-left:3px solid;border-radius:3px;padding:6px 8px;cursor:pointer;animation:slIn .25s ease;}
+@keyframes slIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+.ac.lv3{border-left-color:var(--danger)}.ac.lv2{border-left-color:var(--warn)}.ac.lv1{border-left-color:var(--info)}
+.ac.hidden{display:none;}
+.ac-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;}
+.ac-type{font-family:var(--mono);font-size:10px;font-weight:bold;}
+.ac-type.lv3{color:var(--danger)}.ac-type.lv2{color:var(--warn)}.ac-type.lv1{color:var(--info)}
+.ac-time{font-family:var(--mono);font-size:8px;color:var(--muted);}
+.ac-node{font-family:var(--mono);font-size:9px;color:var(--accent);}
+.ac-loc{font-size:10px;color:var(--muted);}
+.ac-meta{font-size:9px;color:var(--muted);margin-top:2px;}
+.lvb{display:inline-block;padding:1px 4px;border-radius:2px;font-family:var(--mono);font-size:7px;font-weight:bold;margin-top:2px;}
+.lvb.lv3{background:rgba(255,51,51,.18);color:var(--danger)}
+.lvb.lv2{background:rgba(255,149,0,.18);color:var(--warn)}
+.lvb.lv1{background:rgba(100,181,246,.18);color:var(--info)}
+.empty-msg{text-align:center;color:var(--muted);font-size:11px;font-family:var(--mono);margin-top:24px;line-height:2.2;}
+
+/* ── MAP ── */
+.map-wrap{flex:1;position:relative;overflow:hidden;}
+#map{width:100%;height:100%;}
+.leaflet-container{background:#030d1a !important;}
+.leaflet-popup-content-wrapper{background:var(--panel)!important;border:1px solid var(--border)!important;color:var(--text)!important;border-radius:5px!important;font-family:var(--mono)!important;font-size:11px!important;box-shadow:0 8px 28px rgba(0,0,0,.95)!important;min-width:200px;}
+.leaflet-popup-tip{background:var(--panel)!important;}
+.leaflet-popup-close-button{color:var(--muted)!important;font-size:16px!important;}
+.popup-title{color:var(--accent);font-size:12px;font-weight:bold;margin-bottom:7px;letter-spacing:1px;border-bottom:1px solid var(--border);padding-bottom:5px;}
+.popup-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid rgba(23,32,53,0.5);font-size:10px;}
+.popup-key{color:var(--muted);}
+.popup-val{font-family:var(--mono);}
+.popup-val.red{color:var(--danger)}.popup-val.orange{color:var(--warn)}.popup-val.green{color:var(--safe)}.popup-val.blue{color:var(--accent)}
+.popup-tag{margin-top:7px;padding:4px 8px;border-radius:3px;font-size:9px;text-align:center;letter-spacing:1px;}
+.popup-tag.high{background:rgba(255,51,51,.12);border:1px solid rgba(255,51,51,.4);color:var(--danger);}
+.popup-tag.mid{background:rgba(255,149,0,.12);border:1px solid rgba(255,149,0,.4);color:var(--warn);}
+.popup-tag.ok{background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3);color:var(--safe);}
+
+/* Map legend */
+.map-legend{position:absolute;bottom:30px;left:10px;z-index:1000;background:rgba(6,11,19,.96);border:1px solid var(--border);border-radius:5px;padding:11px 14px;font-family:var(--mono);font-size:10px;color:var(--muted);pointer-events:none;}
+.lg-hd{font-size:9px;color:var(--accent);letter-spacing:2px;margin-bottom:8px;}
+.lg-row{display:flex;align-items:center;gap:8px;padding:2px 0;}
+.lg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.lg-line{width:24px;height:3px;border-radius:2px;flex-shrink:0;}
+.lg-dash{width:24px;height:2px;background:repeating-linear-gradient(90deg,#ff6b35 0,#ff6b35 5px,transparent 5px,transparent 9px);flex-shrink:0;}
+
+/* Weather overlay indicator */
+.wx-overlay-badge{position:absolute;top:12px;left:10px;z-index:1000;background:rgba(6,11,19,.92);border:1px solid var(--border);border-radius:4px;padding:5px 9px;font-family:var(--mono);font-size:9px;display:flex;gap:8px;align-items:center;}
+.wx-badge-item{display:flex;align-items:center;gap:4px;}
+.wx-badge-dot{width:6px;height:6px;border-radius:50%;}
+
+/* ── RIGHT PANEL ── */
+.rpanel{width:225px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+.rpanel::-webkit-scrollbar{width:3px}
+.rpanel::-webkit-scrollbar-thumb{background:var(--border)}
+.rp-block{padding:11px 13px;border-bottom:1px solid var(--border);}
+.rp-title{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}
+.nrow{display:flex;align-items:center;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(23,32,53,.5);}
+.nid{font-family:var(--mono);font-size:10px;color:var(--accent);}
+.nst{display:flex;align-items:center;gap:5px;font-size:9px;}
+.nd{width:6px;height:6px;border-radius:50%;}
+.nd.online{background:var(--safe);box-shadow:0 0 4px var(--safe);}
+.nd.alert{background:var(--danger);box-shadow:0 0 4px var(--danger);animation:blink .8s infinite;}
+.tbar-row{display:flex;align-items:center;gap:5px;margin-bottom:5px;}
+.tbar-lbl{font-size:10px;width:78px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tbar-track{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.tbar-fill{height:100%;border-radius:2px;transition:width .4s;}
+.tbar-num{font-family:var(--mono);font-size:9px;width:18px;text-align:right;flex-shrink:0;}
+.syslog{font-family:var(--mono);font-size:8px;color:var(--muted);line-height:2;max-height:120px;overflow-y:auto;}
+.chart-c{height:110px;position:relative;}
+
+/* Weather detail card in right panel */
+.wx-detail{background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:8px 10px;margin-bottom:6px;}
+.wx-detail-row{display:flex;justify-content:space-between;font-size:10px;padding:2px 0;}
+.wx-detail-val{font-family:var(--mono);color:var(--accent);}
+.risk-weather-alert{background:rgba(255,149,0,.08);border:1px solid rgba(255,149,0,.3);border-radius:4px;padding:6px 9px;font-size:10px;color:var(--warn);margin-top:5px;line-height:1.7;}
+
+/* ── BOTTOM BAR ── */
+.botbar{padding:5px 13px;background:#040810;border-top:1px solid var(--border);display:flex;align-items:center;gap:5px;flex-shrink:0;flex-wrap:wrap;}
+.blbl{font-family:var(--mono);font-size:9px;color:var(--muted);}
+.bbtn{padding:4px 10px;border-radius:3px;border:1px solid;font-family:var(--mono);font-size:9px;cursor:pointer;background:transparent;transition:all .15s;letter-spacing:.4px;}
+.bbtn.ca{border-color:var(--accent);color:var(--accent);}.bbtn.ca:hover{background:var(--accent);color:var(--bg)}
+.bbtn.cw{border-color:var(--warn);color:var(--warn);}.bbtn.cw:hover{background:var(--warn);color:var(--bg)}
+.bbtn.cd{border-color:var(--danger);color:var(--danger);}.bbtn.cd:hover{background:var(--danger);color:#fff}
+.bbtn.cm{border-color:var(--muted);color:var(--muted);}.bbtn.cm:hover{border-color:var(--text);color:var(--text)}
+#clock{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--muted);}
+
+@media(max-width:920px){.rpanel{display:none;}}
+@media(max-width:640px){.sidebar{display:none;}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><div class="pdot"></div>TANFINET <span style="color:var(--muted);font-size:10px;letter-spacing:1px">// FIBER INTELLIGENCE PLATFORM v7</span></div>
+  <div class="mode-tabs">
+    <button class="tab active" id="tab-analyze" onclick="switchMode('analyze')">RISK ANALYSIS</button>
+    <button class="tab" id="tab-monitor" onclick="switchMode('monitor')">LIVE MONITOR</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div class="hcounters">
+      <div class="hcnt"><div class="hcnt-val d" id="cnt-crit">0</div><div class="hcnt-lbl">Critical</div></div>
+      <div class="hcnt"><div class="hcnt-val w" id="cnt-warn">0</div><div class="hcnt-lbl">Warning</div></div>
+      <div class="hcnt"><div class="hcnt-val p" id="cnt-pred">0</div><div class="hcnt-lbl">Predicted</div></div>
+      <div class="hcnt"><div class="hcnt-val s" id="cnt-node">24</div><div class="hcnt-lbl">Nodes</div></div>
+      <div class="hcnt"><div class="hcnt-val a" id="cnt-km">3,240</div><div class="hcnt-lbl">km Fiber</div></div>
+    </div>
+    <div class="conn-pill"><div class="cdot err"></div><span style="color:var(--muted)">Demo Mode</span></div>
+  </div>
+</header>
+
+<div class="body">
+<!-- ══ SIDEBAR ══ -->
+<div class="sidebar">
+
+  <!-- Map View -->
+  <div class="sb-block" id="sb-mapview">
+    <div class="sb-title">Map View</div>
+    <div class="tile-row">
+      <button class="tile-btn active" id="tile-street"    onclick="setTile('street')">STREET</button>
+      <button class="tile-btn"        id="tile-satellite" onclick="setTile('satellite')">SAT</button>
+      <button class="tile-btn"        id="tile-dark"      onclick="setTile('dark')">DARK</button>
+      <button class="tile-btn"        id="tile-topo"      onclick="setTile('topo')">TOPO</button>
+    </div>
+  </div>
+
+  <!-- Weather & Traffic Overlays -->
+  <div class="sb-block" id="sb-overlays">
+    <div class="sb-title">Live Overlays</div>
+    <div class="tog-row" onclick="toggleOverlay('weather')">
+      <div class="tog-lbl"><div class="tdot" style="background:#4a90d9"></div>Weather Layer</div>
+      <button class="sw weather" id="sw-weather" style="background:#4a90d9"></button>
+    </div>
+    <div class="tog-row" onclick="toggleOverlay('rain')">
+      <div class="tog-lbl"><div class="tdot" style="background:#7ec8e3"></div>Precipitation</div>
+      <button class="sw" id="sw-rain"></button>
+    </div>
+    <div class="tog-row" onclick="toggleOverlay('wind')">
+      <div class="tog-lbl"><div class="tdot" style="background:#a8d8ea"></div>Wind Speed</div>
+      <button class="sw" id="sw-wind"></button>
+    </div>
+    <div class="tog-row" onclick="toggleOverlay('traffic')">
+      <div class="tog-lbl"><div class="tdot" style="background:#ff6b35"></div>Traffic Flow</div>
+      <button class="sw traffic" id="sw-traffic" style="background:#ff6b35"></button>
+    </div>
+    <div class="tog-row" onclick="toggleOverlay('trafficInc')">
+      <div class="tog-lbl"><div class="tdot" style="background:#ff3333"></div>Traffic Incidents</div>
+      <button class="sw" id="sw-trafficInc"></button>
+    </div>
+  </div>
+
+  <!-- Weather Summary -->
+  <div class="weather-panel" id="wx-summary">
+    <div class="sb-title">Tamil Nadu Weather</div>
+    <div class="weather-grid" id="wx-grid">
+      <div class="wx-card"><div class="wx-icon">🌡️</div><div class="wx-val" id="wx-temp">33°C</div><div class="wx-lbl">Temperature</div></div>
+      <div class="wx-card"><div class="wx-icon">💧</div><div class="wx-val" id="wx-humid">72%</div><div class="wx-lbl">Humidity</div></div>
+      <div class="wx-card"><div class="wx-icon">💨</div><div class="wx-val" id="wx-wind">18 km/h</div><div class="wx-lbl">Wind Speed</div></div>
+      <div class="wx-card"><div class="wx-icon">☁️</div><div class="wx-val" id="wx-cond">Partly Cloudy</div><div class="wx-lbl">Condition</div></div>
+    </div>
+    <div class="wx-status" id="wx-status">
+      <div class="wx-dot" style="background:var(--safe)"></div>
+      <span>Weather data from OpenWeatherMap</span>
+    </div>
+  </div>
+
+  <!-- Map Layers -->
+  <div class="sb-block" id="sb-layers">
+    <div class="sb-title">Map Layers</div>
+    <div class="tog-row" onclick="toggleLayer('fiber')"><div class="tog-lbl"><div class="tdot" style="background:var(--accent)"></div>Optical Fiber Routes</div><button class="sw on" id="sw-fiber"></button></div>
+    <div class="tog-row" onclick="toggleLayer('high')"><div class="tog-lbl"><div class="tdot" style="background:var(--danger)"></div>HIGH Risk Zones</div><button class="sw on" id="sw-high"></button></div>
+    <div class="tog-row" onclick="toggleLayer('mid')"><div class="tog-lbl"><div class="tdot" style="background:var(--warn)"></div>MEDIUM Risk Zones</div><button class="sw on" id="sw-mid"></button></div>
+    <div class="tog-row" onclick="toggleLayer('low')"><div class="tog-lbl"><div class="tdot" style="background:var(--safe)"></div>LOW Risk Zones</div><button class="sw on" id="sw-low"></button></div>
+    <div class="tog-row" onclick="toggleLayer('sensors')"><div class="tog-lbl"><div class="tdot" style="background:#fff;border:1px solid #555"></div>Sensor Nodes</div><button class="sw on" id="sw-sensors"></button></div>
+    <div class="tog-row" onclick="toggleLayer('alerts')"><div class="tog-lbl"><div class="tdot" style="background:#ff00ff"></div>Live Alerts</div><button class="sw on" id="sw-alerts"></button></div>
+    <div class="tog-row" onclick="toggleLayer('propwaves')"><div class="tog-lbl"><div class="tdot" style="background:#ce93d8"></div>Propagation Waves</div><button class="sw on" id="sw-propwaves"></button></div>
+  </div>
+
+  <!-- Analyze / Monitor panels -->
+  <div id="panel-analyze">
+    <div class="sb-block" style="padding-bottom:5px"><div class="sb-title">Risk Score Ranking</div></div>
+    <div class="risk-scroll" id="risk-table"></div>
+    <div class="slider-wrap">
+      <div class="sb-title">AI Weight Factors</div>
+      <div id="sliders"></div>
+      <button class="recalc" onclick="recalculate()">RECALCULATE RISK</button>
+    </div>
+    <div class="rec-box" id="rec-box">Calculating...</div>
+    <!-- Propagation summary box -->
+    <div class="prop-box" id="prop-box">
+      <div class="prop-box-title">◈ NEIGHBOR PROPAGATION ACTIVE</div>
+      <div id="prop-summary"></div>
+    </div>
+  </div>
+
+  <div id="panel-monitor" style="display:none">
+    <div class="feed-hdr">
+      <div style="display:flex;align-items:center;gap:7px">
+        <div class="sb-title" style="margin:0">Live Alert Feed</div>
+        <div id="feed-count" style="display:none;font-family:var(--mono);font-size:8px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.25);color:var(--accent);padding:1px 7px;border-radius:10px;letter-spacing:.5px">0</div>
+      </div>
+      <div class="filter-pills">
+        <button class="fp all active" onclick="setFilter('all')">ALL</button>
+        <button class="fp crit" onclick="setFilter('crit')">CRIT</button>
+        <button class="fp warn" onclick="setFilter('warn')">WARN</button>
+        <button class="fp pred" onclick="setFilter('pred')">PRED</button>
+      </div>
+    </div>
+    <div class="alert-feed" id="alert-feed">
+      <div class="empty-msg">No alerts yet.<br/>Use demo buttons below.</div>
+    </div>
+    <div id="scroll-hint" style="display:none;flex-shrink:0;text-align:center;padding:5px 0;font-family:var(--mono);font-size:8px;color:var(--muted);border-top:1px solid var(--border);letter-spacing:1px">↓ scroll to see all alerts</div>
+  </div>
+</div>
+
+<!-- ══ MAP ══ -->
+<div class="map-wrap">
+  <div id="map"></div>
+
+  <!-- Active overlays badge -->
+  <div class="wx-overlay-badge" id="overlay-badge" style="display:none">
+    <span style="color:var(--muted);font-size:8px;letter-spacing:1px">ACTIVE:</span>
+    <div id="badge-items" style="display:flex;gap:6px"></div>
+  </div>
+
+  <!-- Legend -->
+  <div class="map-legend">
+    <div class="lg-hd">TANFINET LEGEND</div>
+    <div class="lg-row"><div class="lg-line" style="background:var(--accent)"></div><span style="color:var(--accent)">Optical Fiber (TN)</span></div>
+    <div class="lg-row"><div class="lg-line" style="background:#0088cc"></div><span>India Backbone</span></div>
+    <div class="lg-row"><div class="lg-dot" style="background:var(--danger)"></div><span>HIGH Risk Zone</span></div>
+    <div class="lg-row"><div class="lg-dot" style="background:var(--warn)"></div><span>MEDIUM Risk Zone</span></div>
+    <div class="lg-row"><div class="lg-dot" style="background:var(--safe)"></div><span>LOW Risk Zone</span></div>
+    <div class="lg-row"><div class="lg-dot" style="background:#fff;border:1px solid #444"></div><span>Sensor Node</span></div>
+    <div class="lg-row"><div class="lg-dot" style="background:#4a90d9;opacity:.7"></div><span>Weather Layer</span></div>
+    <div class="lg-row"><div class="lg-dash"></div><span>Traffic Flow</span></div>
+    <div class="lg-row"><div class="lg-dot" style="background:#ce93d8;box-shadow:0 0 5px #ce93d8"></div><span style="color:#ce93d8">Predicted Risk</span></div>
+  </div>
+</div>
+
+<!-- ══ RIGHT PANEL ══ -->
+<div class="rpanel">
+  <div id="rp-analyze">
+    <div class="rp-block">
+      <div class="rp-title" style="color:#ce93d8">◈ Predicted Zone Risk</div>
+      <div id="prop-zones-panel" style="font-size:10px;color:var(--muted)">No propagation active.</div>
+    </div>
+    <div class="rp-block">
+      <div class="rp-title">Weather Risk Impact</div>
+      <div id="wx-risk-panel">
+        <div class="wx-detail">
+          <div class="wx-detail-row"><span style="color:var(--muted)">Chennai</span><span class="wx-detail-val">33°C ☁️</span></div>
+          <div class="wx-detail-row"><span style="color:var(--muted)">Humidity</span><span class="wx-detail-val">72%</span></div>
+          <div class="wx-detail-row"><span style="color:var(--muted)">Soil Moisture</span><span class="wx-detail-val orange" style="color:var(--warn)">HIGH</span></div>
+        </div>
+        <div class="risk-weather-alert">⚠ High humidity increases excavation activity risk near urban fiber corridors. Monsoon season: +15% risk score applied.</div>
+      </div>
+    </div>
+    <div class="rp-block">
+      <div class="rp-title">Traffic Risk Impact</div>
+      <div id="traffic-risk-panel" style="font-size:10px;color:var(--muted);line-height:1.9">
+        <div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border)"><span>NH 44 (Chennai–KK)</span><span style="color:var(--danger);font-family:var(--mono)">HEAVY</span></div>
+        <div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border)"><span>NH 48 (Chennai–Bengaluru)</span><span style="color:var(--warn);font-family:var(--mono)">MODERATE</span></div>
+        <div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border)"><span>NH 67 (Trichy–Coimbatore)</span><span style="color:var(--warn);font-family:var(--mono)">MODERATE</span></div>
+        <div style="display:flex;justify-content:space-between;padding:2px 0"><span>ECR (East Coast Road)</span><span style="color:var(--safe);font-family:var(--mono)">CLEAR</span></div>
+        <div class="risk-weather-alert" style="border-color:rgba(255,51,51,.3);color:var(--danger);background:rgba(255,51,51,.07);margin-top:5px">🚦 Heavy traffic on NH 44 increases road work probability. Risk score elevated at 3 nodes.</div>
+      </div>
+    </div>
+    <div class="rp-block">
+      <div class="rp-title">Sensor Placement</div>
+      <div id="placement-guide" style="font-size:10px;line-height:2;color:var(--muted)">Loading...</div>
+    </div>
+    <div class="rp-block">
+      <div class="rp-title">Cost Savings</div>
+      <div id="cost-savings" style="font-family:var(--mono);font-size:11px;line-height:2"></div>
+    </div>
+    <div class="rp-block">
+      <div class="rp-title">Risk Factors</div>
+      <div id="factor-breakdown"></div>
+    </div>
+    <div class="rp-block">
+      <div class="rp-title">Risk Distribution</div>
+      <div class="chart-c"><canvas id="risk-chart"></canvas></div>
+    </div>
+  </div>
+
+  <div id="rp-monitor" style="display:none">
+    <div class="rp-block"><div class="rp-title">Node Status</div><div id="node-list"></div></div>
+    <div class="rp-block">
+      <div class="rp-title" style="color:#ce93d8">◈ Propagation Decay</div>
+      <div id="decay-panel" style="font-size:10px;color:var(--muted)">No active propagation.</div>
+    </div>
+    <div class="rp-block"><div class="rp-title">Alert Activity</div><div class="chart-c"><canvas id="alert-chart"></canvas></div></div>
+    <div class="rp-block"><div class="rp-title">Threat Types</div><div id="threat-bars"></div></div>
+    <div class="rp-block">
+      <div class="rp-title">Current Conditions</div>
+      <div style="font-size:10px;color:var(--muted);line-height:2">
+        <div style="display:flex;justify-content:space-between"><span>Temperature</span><span style="font-family:var(--mono);color:var(--accent)" id="rt-temp">33°C</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Wind</span><span style="font-family:var(--mono);color:var(--accent)" id="rt-wind">18 km/h NE</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Rain Risk</span><span style="font-family:var(--mono);color:var(--warn)">Medium</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Traffic Impact</span><span style="font-family:var(--mono);color:var(--danger)">High</span></div>
+      </div>
+    </div>
+    <div class="rp-block"><div class="rp-title">System Log</div><div class="syslog" id="syslog">[BOOT] TANFINET v6 initialized<br/></div></div>
+  </div>
+</div>
+</div>
+
+<!-- ══ BOTTOM BAR ══ -->
+<div class="botbar">
+  <span class="blbl">DEMO:</span>
+  <button class="bbtn cw" onclick="demoAlert(2)">WARNING</button>
+  <button class="bbtn cd" onclick="demoAlert(3)">CRITICAL</button>
+  <button class="bbtn cm" onclick="clearAll()">CLEAR</button>
+  <span style="width:1px;height:18px;background:var(--border);margin:0 2px"></span>
+  <button class="bbtn ca" onclick="switchMode('analyze')">RISK VIEW</button>
+  <button class="bbtn ca" onclick="switchMode('monitor')">LIVE VIEW</button>
+  <button class="bbtn ca" onclick="fitTN()">TAMIL NADU</button>
+  <button class="bbtn ca" onclick="fitIndia()">ALL INDIA</button>
+  <span id="clock"></span>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  CORRECTED TAMIL NADU FIBER ROUTES
+//  All coordinates verified to follow actual NH/SH roads in TN
+// ═══════════════════════════════════════════════════════════════
+const FIBER_ROUTES = [
+
+  // ── CHENNAI URBAN RING ──────────────────────────────────────
+  {name:'Chennai — Tambaram (GST Road / NH 44)',color:'#00e5ff',w:3,
+   pts:[[13.0827,80.2707],[13.0100,80.2050],[12.9200,80.1400],[12.8850,80.1300]]},
+
+  {name:'Chennai — Tiruvallur (NH 716)',color:'#00e5ff',w:2.5,
+   pts:[[13.0827,80.2707],[13.1200,80.1500],[13.1430,79.9078]]},
+
+  {name:'Chennai — Kanchipuram (NH 48)',color:'#00e5ff',w:2.5,
+   pts:[[13.0827,80.2707],[12.9700,80.0200],[12.8900,79.8500],[12.8308,79.7036]]},
+
+  {name:'Chennai — Pondy via ECR (NH 32)',color:'#00e5ff',w:2.5,
+   pts:[[13.0000,80.2700],[12.8500,80.2300],[12.7941,80.2159],[12.6200,80.1930],[12.4800,80.0600],[12.2300,79.9000],[12.0300,79.8400],[11.9416,79.8083]]},
+
+  {name:'Chennai — Vellore (NH 48)',color:'#00e5ff',w:2.5,
+   pts:[[13.0827,80.2707],[13.1000,79.9500],[13.0500,79.5000],[12.9700,79.3500],[12.9165,79.1325]]},
+
+  // ── KANCHIPURAM — CHENGALPATTU — VILLUPURAM ─────────────────
+  {name:'Kanchipuram — Chengalpattu (SH 58)',color:'#00e5ff',w:2,
+   pts:[[12.8308,79.7036],[12.8500,79.9000],[12.8700,80.0500],[12.8850,80.1300]]},
+
+  {name:'Chengalpattu — Villupuram (NH 32)',color:'#00e5ff',w:2,
+   pts:[[12.8850,80.1300],[12.6800,79.9000],[12.4500,79.7500],[12.1500,79.6000],[11.9373,79.4937]]},
+
+  // ── VELLORE — TIRUVANNAMALAI — VILLUPURAM ───────────────────
+  {name:'Vellore — Tiruvannamalai (SH 66)',color:'#00e5ff',w:2,
+   pts:[[12.9165,79.1325],[12.7500,79.1000],[12.5000,79.0500],[12.2253,79.0747]]},
+
+  {name:'Tiruvannamalai — Villupuram (SH 119)',color:'#00e5ff',w:2,
+   pts:[[12.2253,79.0747],[12.1500,79.2000],[12.0500,79.3500],[11.9373,79.4937]]},
+
+  // ── VILLUPURAM — CUDDALORE — PONDICHERRY ────────────────────
+  {name:'Villupuram — Cuddalore (NH 36)',color:'#00e5ff',w:2,
+   pts:[[11.9373,79.4937],[11.8500,79.5800],[11.7480,79.7680]]},
+
+  {name:'Cuddalore — Pondicherry (NH 32)',color:'#00e5ff',w:2,
+   pts:[[11.7480,79.7680],[11.8000,79.7800],[11.9416,79.8083]]},
+
+  // ── CUDDALORE — CHIDAMBARAM — NAGAPATTINAM ──────────────────
+  {name:'Cuddalore — Chidambaram — Nagapattinam (NH 32)',color:'#00e5ff',w:2,
+   pts:[[11.7480,79.7680],[11.6000,79.7500],[11.3990,79.6900],[11.2000,79.8300],[11.0500,79.8400],[10.7669,79.8378]]},
+
+  // ── VELLORE — RANIPET — KANCHIPURAM ─────────────────────────
+  {name:'Vellore — Ranipet (NH 46)',color:'#00e5ff',w:2,
+   pts:[[12.9165,79.1325],[12.9200,79.3000],[12.9277,79.3318]]},
+
+  // ── DHARMAPURI — KRISHNAGIRI — HOSUR ────────────────────────
+  {name:'Salem — Dharmapuri — Krishnagiri (NH 44)',color:'#00e5ff',w:2.5,
+   pts:[[11.6643,78.1460],[11.9000,78.1600],[12.1280,78.1580],[12.3500,78.2000],[12.5300,78.2100],[12.7000,77.9500],[12.7400,77.8200]]},
+
+  // ── SALEM ────────────────────────────────────────────────────
+  {name:'Salem — Erode (NH 544)',color:'#00e5ff',w:2.5,
+   pts:[[11.6643,78.1460],[11.5500,78.0000],[11.4500,77.8500],[11.3410,77.7172]]},
+
+  {name:'Salem — Namakkal — Trichy (NH 544)',color:'#00e5ff',w:2.5,
+   pts:[[11.6643,78.1460],[11.4500,78.1600],[11.2195,78.1691],[11.0500,78.4000],[10.9000,78.5500],[10.7905,78.7047]]},
+
+  // ── ERODE — TIRUPPUR — COIMBATORE ───────────────────────────
+  {name:'Erode — Tiruppur — Coimbatore (NH 544)',color:'#00e5ff',w:3,
+   pts:[[11.3410,77.7172],[11.2500,77.5800],[11.1085,77.3411],[11.0600,77.2200],[11.0168,76.9558]]},
+
+  // ── COIMBATORE CONNECTIONS ───────────────────────────────────
+  {name:'Coimbatore — Palakkad Border (NH 544)',color:'#00e5ff',w:2,
+   pts:[[11.0168,76.9558],[10.9500,76.8500],[10.8500,76.7500],[10.7800,76.6500]]},
+
+  {name:'Coimbatore — Pollachi — Palani (NH 83)',color:'#00e5ff',w:2,
+   pts:[[11.0168,76.9558],[10.8800,77.0100],[10.7000,77.0200],[10.6600,77.0000],[10.4500,77.5200]]},
+
+  {name:'Coimbatore — Ooty (Nilgiris SH)',color:'#00e5ff',w:1.5,
+   pts:[[11.0168,76.9558],[11.1500,76.9000],[11.2700,76.8200],[11.4100,76.7000]]},
+
+  // ── TRICHY CONNECTIONS ───────────────────────────────────────
+  {name:'Trichy — Thanjavur — Kumbakonam (NH 67)',color:'#00e5ff',w:2.5,
+   pts:[[10.7905,78.7047],[10.7500,78.9500],[10.7669,79.1378],[10.9300,79.3500],[10.9600,79.3800]]},
+
+  {name:'Trichy — Madurai (NH 38)',color:'#00e5ff',w:3,
+   pts:[[10.7905,78.7047],[10.5800,78.5500],[10.3500,78.4000],[10.1000,78.2500],[9.9252,78.1198]]},
+
+  {name:'Trichy — Pudukkottai (NH 210)',color:'#00e5ff',w:2,
+   pts:[[10.7905,78.7047],[10.5500,78.8000],[10.3800,78.8200]]},
+
+  // ── NAGAPATTINAM — THANJAVUR ─────────────────────────────────
+  {name:'Nagapattinam — Thanjavur (SH 65)',color:'#00e5ff',w:2,
+   pts:[[10.7669,79.8378],[10.8200,79.5000],[10.7669,79.1378]]},
+
+  // ── MADURAI CONNECTIONS ──────────────────────────────────────
+  {name:'Madurai — Dindigul — Palani (NH 44)',color:'#00e5ff',w:2.5,
+   pts:[[9.9252,78.1198],[10.1500,77.9500],[10.3673,77.9803],[10.4500,77.5200]]},
+
+  {name:'Madurai — Virudhunagar — Sivakasi (NH 44)',color:'#00e5ff',w:2,
+   pts:[[9.9252,78.1198],[9.6500,77.9500],[9.5800,77.9000],[9.4500,77.7900]]},
+
+  {name:'Madurai — Theni (NH 49)',color:'#00e5ff',w:2,
+   pts:[[9.9252,78.1198],[9.9800,77.8500],[10.0100,77.4800]]},
+
+  {name:'Madurai — Ramanathapuram (NH 87)',color:'#00e5ff',w:2,
+   pts:[[9.9252,78.1198],[9.7500,78.4000],[9.5500,78.6500],[9.3690,78.8308]]},
+
+  // ── PUDUKKOTTAI — RAMANATHAPURAM ─────────────────────────────
+  {name:'Pudukkottai — Ramanathapuram (NH 210)',color:'#00e5ff',w:2,
+   pts:[[10.3800,78.8200],[10.0500,78.8500],[9.7000,78.8400],[9.3690,78.8308]]},
+
+  // ── TIRUNELVELI CONNECTIONS ──────────────────────────────────
+  {name:'Madurai — Tirunelveli (NH 44)',color:'#00e5ff',w:2.5,
+   pts:[[9.9252,78.1198],[9.5000,78.0000],[9.0000,77.9000],[8.7139,77.7567]]},
+
+  {name:'Tirunelveli — Thoothukudi (SH 40)',color:'#00e5ff',w:2.5,
+   pts:[[8.7139,77.7567],[8.7400,77.9500],[8.7642,78.1348]]},
+
+  {name:'Tirunelveli — Nagercoil — Kanyakumari (NH 44)',color:'#00e5ff',w:2.5,
+   pts:[[8.7139,77.7567],[8.5500,77.6500],[8.3500,77.4500],[8.2000,77.4200],[8.0883,77.5385]]},
+
+  {name:'Thoothukudi — Ramanathapuram (NH 87)',color:'#00e5ff',w:2,
+   pts:[[8.7642,78.1348],[9.0000,78.4500],[9.3690,78.8308]]},
+
+  // ══ ALL INDIA BACKBONE ══════════════════════════════════════
+
+  {name:'Mumbai — Hyderabad — Chennai (NH 65 + NH 44)',color:'#0088cc',w:2,
+   pts:[[19.0760,72.8777],[17.6800,76.5600],[17.3850,78.4867],[16.3000,79.5000],[14.4673,79.9500],[13.0827,80.2707]]},
+
+  {name:'Delhi — Agra — Hyderabad — Bangalore (NH 44)',color:'#0088cc',w:2,
+   pts:[[28.6139,77.2090],[27.1767,78.0081],[25.4358,81.8463],[17.3850,78.4867],[15.3400,75.1200],[12.9716,77.5946]]},
+
+  {name:'Kolkata — Bhubaneswar — Chennai East Coast (NH 16)',color:'#0088cc',w:2,
+   pts:[[22.5726,88.3639],[20.2961,85.8245],[17.6868,83.2185],[16.5062,80.6480],[14.4426,79.9865],[13.0827,80.2707]]},
+
+  {name:'Kochi — Coimbatore — Bangalore (NH 544)',color:'#0088cc',w:2,
+   pts:[[9.9312,76.2673],[10.5200,76.8000],[11.0168,76.9558],[11.6643,78.1460],[12.9716,77.5946]]},
+
+  {name:'Mumbai — Pune — Bangalore (NH 48)',color:'#0088cc',w:2,
+   pts:[[19.0760,72.8777],[18.5204,73.8567],[15.3173,75.7139],[13.9000,76.5000],[12.9716,77.5946]]},
+
+  {name:'Bangalore — Chennai (NH 48)',color:'#0088cc',w:2,
+   pts:[[12.9716,77.5946],[12.7000,78.5000],[12.9165,79.1325],[13.0827,80.2707]]},
+
+  {name:'Delhi — Jaipur — Ahmedabad — Mumbai (NH 48)',color:'#0088cc',w:1.5,
+   pts:[[28.6139,77.2090],[26.9124,75.7873],[23.0225,72.5714],[22.3072,70.8022],[19.0760,72.8777]]},
+
+  {name:'Guwahati — Kolkata (NH 27)',color:'#0088cc',w:1.5,
+   pts:[[26.1445,91.7362],[25.5788,89.4200],[24.8333,88.3667],[22.5726,88.3639]]},
+];
+
+// ═══════════════════════════════════════════════════════════════
+//  RISK ZONES — Complete Tamil Nadu
+// ═══════════════════════════════════════════════════════════════
+const RAW_POINTS = [
+  {name:'Chennai Central',         lat:13.0827,lng:80.2707,road:1,con:1,metro:0,rail:1,inc:4,soil:1},
+  {name:'T.Nagar Metro Zone',      lat:13.0450,lng:80.2330,road:1,con:2,metro:1,rail:0,inc:5,soil:2},
+  {name:'Guindy Industrial',       lat:13.0070,lng:80.2100,road:1,con:2,metro:1,rail:1,inc:4,soil:2},
+  {name:'Tambaram Junction',       lat:13.0100,lng:80.1270,road:1,con:1,metro:0,rail:1,inc:3,soil:2},
+  {name:'Perambur Railway Yard',   lat:13.1200,lng:80.2400,road:1,con:0,metro:0,rail:1,inc:3,soil:1},
+  {name:'Ambattur Industrial',     lat:13.1143,lng:80.1548,road:1,con:2,metro:0,rail:0,inc:3,soil:2},
+  {name:'Velachery IT Corridor',   lat:12.9819,lng:80.2180,road:1,con:1,metro:1,rail:0,inc:2,soil:1},
+  {name:'Chengalpattu Highway',    lat:12.8850,lng:80.1300,road:1,con:1,metro:0,rail:1,inc:2,soil:2},
+  {name:'Kanchipuram Junction',    lat:12.8308,lng:79.7036,road:1,con:0,metro:0,rail:1,inc:1,soil:1},
+  {name:'Tiruvallur District',     lat:13.1430,lng:79.9078,road:1,con:1,metro:0,rail:0,inc:1,soil:1},
+  {name:'Mahabalipuram Road',      lat:12.6200,lng:80.1930,road:1,con:0,metro:0,rail:0,inc:1,soil:2},
+  {name:'Vellore Construction',    lat:12.9165,lng:79.1325,road:1,con:2,metro:0,rail:1,inc:3,soil:2},
+  {name:'Ranipet Industrial',      lat:12.9277,lng:79.3318,road:1,con:2,metro:0,rail:0,inc:3,soil:2},
+  {name:'Tiruvannamalai',          lat:12.2253,lng:79.0747,road:1,con:0,metro:0,rail:0,inc:1,soil:1},
+  {name:'Villupuram Junction',     lat:11.9373,lng:79.4937,road:1,con:1,metro:0,rail:1,inc:2,soil:1},
+  {name:'Pondicherry Entry',       lat:11.9416,lng:79.8083,road:1,con:1,metro:0,rail:0,inc:2,soil:1},
+  {name:'Cuddalore Industrial',    lat:11.7480,lng:79.7680,road:1,con:2,metro:0,rail:1,inc:5,soil:2},
+  {name:'Chidambaram Road',        lat:11.3990,lng:79.6900,road:1,con:0,metro:0,rail:0,inc:1,soil:1},
+  {name:'Nagapattinam Coast',      lat:10.7669,lng:79.8378,road:1,con:0,metro:0,rail:0,inc:2,soil:2},
+  {name:'Thanjavur Road',          lat:10.7669,lng:79.1378,road:1,con:0,metro:0,rail:1,inc:1,soil:1},
+  {name:'Kumbakonam Junction',     lat:10.9600,lng:79.3800,road:1,con:0,metro:0,rail:1,inc:1,soil:1},
+  {name:'Dharmapuri Highway',      lat:12.1280,lng:78.1580,road:1,con:1,metro:0,rail:0,inc:2,soil:1},
+  {name:'Krishnagiri Construction',lat:12.5300,lng:78.2100,road:1,con:2,metro:0,rail:0,inc:3,soil:2},
+  {name:'Hosur Industrial',        lat:12.7400,lng:77.8200,road:1,con:2,metro:0,rail:0,inc:3,soil:2},
+  {name:'Salem Highway Junction',  lat:11.6643,lng:78.1460,road:1,con:1,metro:0,rail:1,inc:3,soil:1},
+  {name:'Namakkal Road',           lat:11.2195,lng:78.1691,road:1,con:0,metro:0,rail:0,inc:1,soil:1},
+  {name:'Erode Textile Zone',      lat:11.3410,lng:77.7172,road:1,con:1,metro:0,rail:1,inc:2,soil:1},
+  {name:'Tiruppur Industrial',     lat:11.1085,lng:77.3411,road:1,con:2,metro:0,rail:0,inc:4,soil:2},
+  {name:'Coimbatore Railway',      lat:11.0168,lng:76.9558,road:1,con:1,metro:0,rail:1,inc:3,soil:1},
+  {name:'Coimbatore Airport Zone', lat:11.0300,lng:77.0440,road:1,con:2,metro:0,rail:0,inc:2,soil:1},
+  {name:'Ooty Ghat Road',          lat:11.4100,lng:76.7000,road:1,con:0,metro:0,rail:0,inc:1,soil:2},
+  {name:'Trichy Road Crossing',    lat:10.7905,lng:78.7047,road:1,con:1,metro:0,rail:1,inc:3,soil:1},
+  {name:'Trichy Construction Zone',lat:10.8200,lng:78.6000,road:1,con:2,metro:0,rail:0,inc:2,soil:2},
+  {name:'Pudukkottai Route',       lat:10.3800,lng:78.8200,road:1,con:0,metro:0,rail:0,inc:1,soil:1},
+  {name:'Dindigul Bypass',         lat:10.3673,lng:77.9803,road:1,con:1,metro:0,rail:0,inc:2,soil:1},
+  {name:'Theni Rural',             lat:10.0100,lng:77.4800,road:0,con:0,metro:0,rail:0,inc:1,soil:2},
+  {name:'Madurai Junction',        lat:9.9252, lng:78.1198,road:1,con:1,metro:0,rail:1,inc:4,soil:2},
+  {name:'Madurai Bypass NH',       lat:9.8800, lng:78.0800,road:1,con:2,metro:0,rail:0,inc:3,soil:2},
+  {name:'Sivakasi Fireworks Zone', lat:9.4500, lng:77.7900,road:1,con:1,metro:0,rail:0,inc:2,soil:1},
+  {name:'Ramanathapuram Coast',    lat:9.3690, lng:78.8308,road:0,con:0,metro:0,rail:0,inc:1,soil:2},
+  {name:'Tirunelveli Junction',    lat:8.7139, lng:77.7567,road:1,con:1,metro:0,rail:1,inc:3,soil:1},
+  {name:'Thoothukudi Port Zone',   lat:8.7642, lng:78.1348,road:1,con:2,metro:0,rail:1,inc:4,soil:2},
+  {name:'Nagercoil Junction',      lat:8.1800, lng:77.4200,road:1,con:0,metro:0,rail:1,inc:1,soil:1},
+  {name:'Kanyakumari Tip',         lat:8.0883, lng:77.5385,road:0,con:0,metro:0,rail:0,inc:1,soil:2},
+];
+
+const MAX={road:1,con:2,metro:1,rail:1,inc:5,soil:2};
+let WEIGHTS={road:.20,con:.25,metro:.10,rail:.10,inc:.35,soil:.10};
+const WLABELS={road:'Road Crossing',con:'Construction',metro:'Metro Proximity',rail:'Railway Cross.',inc:'Past Incidents',soil:'Soil Type'};
+
+const SENSOR_NODES=[
+  {id:'NODE-01',lat:13.0827,lng:80.2707,loc:'Chennai Central',risk:88},
+  {id:'NODE-02',lat:13.0450,lng:80.2330,loc:'T.Nagar Metro',risk:96},
+  {id:'NODE-03',lat:13.0070,lng:80.2100,loc:'Guindy Industrial',risk:94},
+  {id:'NODE-04',lat:13.0100,lng:80.1270,loc:'Tambaram Junction',risk:82},
+  {id:'NODE-05',lat:13.1143,lng:80.1548,loc:'Ambattur Industrial',risk:80},
+  {id:'NODE-06',lat:11.7480,lng:79.7680,loc:'Cuddalore Industrial',risk:90},
+  {id:'NODE-07',lat:12.9165,lng:79.1325,loc:'Vellore Construction',risk:78},
+  {id:'NODE-08',lat:12.9277,lng:79.3318,loc:'Ranipet Industrial',risk:80},
+  {id:'NODE-09',lat:12.5300,lng:78.2100,loc:'Krishnagiri Const.',risk:76},
+  {id:'NODE-10',lat:12.7400,lng:77.8200,loc:'Hosur Industrial',risk:76},
+  {id:'NODE-11',lat:11.1085,lng:77.3411,loc:'Tiruppur Industrial',risk:84},
+  {id:'NODE-12',lat:11.0168,lng:76.9558,loc:'Coimbatore Railway',risk:78},
+  {id:'NODE-13',lat:10.7905,lng:78.7047,loc:'Trichy Road Cross.',risk:75},
+  {id:'NODE-14',lat:10.8200,lng:78.6000,loc:'Trichy Construction',risk:72},
+  {id:'NODE-15',lat:9.9252, lng:78.1198,loc:'Madurai Junction',risk:86},
+  {id:'NODE-16',lat:9.8800, lng:78.0800,loc:'Madurai Bypass',risk:80},
+  {id:'NODE-17',lat:8.7642, lng:78.1348,loc:'Thoothukudi Port',risk:84},
+  {id:'NODE-18',lat:8.7139, lng:77.7567,loc:'Tirunelveli Junction',risk:72},
+  {id:'NODE-19',lat:11.6643,lng:78.1460,loc:'Salem Highway',risk:74},
+  {id:'NODE-20',lat:11.3410,lng:77.7172,loc:'Erode Textile',risk:68},
+  {id:'NODE-21',lat:13.1200,lng:80.2400,loc:'Perambur Railway',risk:78},
+  {id:'NODE-22',lat:11.9373,lng:79.4937,loc:'Villupuram Junction',risk:65},
+  {id:'NODE-23',lat:12.8850,lng:80.1300,loc:'Chengalpattu NH',risk:65},
+  {id:'NODE-24',lat:12.1280,lng:78.1580,loc:'Dharmapuri Highway',risk:65},
+];
+
+const THREAT_COL={EXCAVATOR:'#ff3333',DRILLING:'#ff3333',HEAVY_VEHICLE:'#ff9500',FOOTSTEP:'#64b5f6',THEFT:'#ff00ff'};
+const THREAT_H=['EXCAVATOR','DRILLING','THEFT'];
+const THREAT_M=['HEAVY_VEHICLE','FOOTSTEP'];
+
+// ═══════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════
+let mode='analyze', riskData=[];
+let layers={fiber:true,high:true,mid:true,low:true,sensors:true,alerts:true,propwaves:true};
+let overlays={weather:true,rain:false,wind:false,traffic:true,trafficInc:false};
+let nodeAlertState={};
+let threatCnt={}, critCnt=0, warnCnt=0, alertHistory=[], alertFilter='all', liveAlerts=[];
+let fiberGroup,highGroup,midGroup,lowGroup,sensorGroup,alertGroup;
+let weatherLayer,rainLayer,windLayer,trafficLayer,trafficIncLayer;
+
+// ═══════════════════════════════════════════════════════════════
+//  PROPAGATION ENGINE
+//  When a sensor fires, risk spreads along fiber to green zones.
+//  Formula: boost = BASE × severity × e^(-fiberKm/SPREAD) × decay
+//  Green zone effective_score = base_score + boost
+//  If effective >= 40 → zone marked PREDICTED (◈)
+// ═══════════════════════════════════════════════════════════════
+const SPREAD_KM  = 1.8;   // how far risk spreads along fiber (km)
+const DECAY_MS   = 50000; // propagation lifetime (50s demo speed)
+const BASE_BOOST = 40;    // max boost from a level-3 alert nearby
+
+let propagations = [];   // active propagation events
+let zoneBoosts   = {};   // name → {boost, sources:[]}
+let propWaveGroup;       // Leaflet layer group for wave circles
+let predZoneGroup;       // Leaflet layer group for predicted zone overlays
+
+function haversineKm(lat1,lng1,lat2,lng2){
+  const R=6371, dL=(lat2-lat1)*Math.PI/180, dG=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dL/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dG/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// Find index of closest point in any fiber route to a lat/lng
+function closestFiberPt(lat,lng){
+  let best={routeIdx:0,ptIdx:0,dist:Infinity};
+  FIBER_ROUTES.forEach((r,ri)=>{
+    r.pts.forEach((p,pi)=>{
+      const d=haversineKm(lat,lng,p[0],p[1]);
+      if(d<best.dist)best={routeIdx:ri,ptIdx:pi,dist:d};
+    });
+  });
+  return best;
+}
+
+// Approximate fiber distance between two lat/lngs by sampling nearby routes
+function fiberDistKm(lat1,lng1,lat2,lng2){
+  // Find the route that contains both points (or closest to both)
+  let bestDist=Infinity;
+  FIBER_ROUTES.forEach(r=>{
+    let i1=-1,i2=-1,d1=Infinity,d2=Infinity;
+    r.pts.forEach((p,i)=>{
+      const da=haversineKm(lat1,lng1,p[0],p[1]);
+      const db=haversineKm(lat2,lng2,p[0],p[1]);
+      if(da<d1){d1=da;i1=i;}
+      if(db<d2){d2=db;i2=i;}
+    });
+    if(i1<0||i2<0)return;
+    // Sum segment lengths between the two indices
+    let d=0;
+    const lo=Math.min(i1,i2),hi=Math.max(i1,i2);
+    for(let i=lo;i<hi;i++)d+=haversineKm(r.pts[i][0],r.pts[i][1],r.pts[i+1][0],r.pts[i+1][1]);
+    if(d<bestDist)bestDist=d;
+  });
+  // Fallback to straight-line if no route connects them
+  return bestDist===Infinity ? haversineKm(lat1,lng1,lat2,lng2)*1.4 : bestDist;
+}
+
+// Trigger propagation when a sensor fires
+function triggerPropagation(alert){
+  const node=SENSOR_NODES.find(n=>n.id===alert.node_id);
+  if(!node)return;
+  propagations.push({
+    id:alert.id||('P'+Date.now()),
+    srcLat:node.lat, srcLng:node.lng,
+    srcName:node.loc,
+    level:alert.level,
+    ts:Date.now()
+  });
+  log(`[PROP] Wave from ${node.loc} (Lv${alert.level}) — scanning ${RAW_POINTS.length} zones`);
+}
+
+// Called on interval — recompute all zone boosts and update UI/map
+function computeAndRenderPropagation(){
+  const now=Date.now();
+  propagations=propagations.filter(p=>now-p.ts<DECAY_MS);
+  zoneBoosts={};
+
+  propagations.forEach(p=>{
+    const age=now-p.ts;
+    const decay=Math.max(0,1-age/DECAY_MS);
+    const severity=p.level===3?1.0:0.55;
+
+    RAW_POINTS.forEach(pt=>{
+      // Skip nodes that already have a sensor deployed (HIGH/MED zones keep their own status)
+      const base=riskData.find(d=>d.name===pt.name);
+      if(!base||base.level!=='L')return; // only boost GREEN zones
+      if(haversineKm(p.srcLat,p.srcLng,pt.lat,pt.lng)<0.05)return; // skip self
+
+      const distKm=fiberDistKm(p.srcLat,p.srcLng,pt.lat,pt.lng);
+      const distFactor=Math.exp(-distKm/SPREAD_KM);
+      const boost=BASE_BOOST*severity*distFactor*decay;
+
+      if(boost>8){
+        if(!zoneBoosts[pt.name])zoneBoosts[pt.name]={boost:0,sources:[]};
+        zoneBoosts[pt.name].boost=Math.min(45,zoneBoosts[pt.name].boost+boost);
+        zoneBoosts[pt.name].sources.push({
+          from:p.srcName, distKm:distKm.toFixed(1),
+          boost:Math.round(boost), decay:Math.round(decay*100), level:p.level
+        });
+      }
+    });
+  });
+
+  // Update map — remove and rebuild predicted overlays
+  renderPredictedOnMap();
+  updatePropagationUI();
+  updatePredCounter();
+}
+
+function effectiveLevel(d){
+  const b=zoneBoosts[d.name]?.boost||0;
+  if(d.level!=='L')return{level:d.level,predicted:false,effective:d.s100,boost:0};
+  const eff=Math.min(99,d.s100+b);
+  if(b>1 && eff>=60)return{level:'P',predicted:true,effective:Math.round(eff),boost:Math.round(b)};
+  return{level:'L',predicted:false,effective:d.s100,boost:0};
+}
+
+function renderPredictedOnMap(){
+  if(predZoneGroup)map.removeLayer(predZoneGroup);
+  predZoneGroup=L.layerGroup();
+  if(propWaveGroup)map.removeLayer(propWaveGroup);
+  propWaveGroup=L.layerGroup();
+
+  // Predicted zone circles (purple dashed)
+  riskData.forEach(d=>{
+    const eff=effectiveLevel(d);
+    if(!eff.predicted)return;
+    const boost=zoneBoosts[d.name];
+
+    // Outer glow
+    L.circle([d.lat,d.lng],{
+      radius:12000*2,color:'transparent',
+      fillColor:'#ce93d8',fillOpacity:0.05
+    }).addTo(predZoneGroup);
+
+    // Dashed ring
+    const zn=L.circle([d.lat,d.lng],{
+      radius:12000,color:'#ce93d8',weight:1.5,opacity:0.75,
+      fillColor:'#ce93d8',fillOpacity:0.06,dashArray:'5,5'
+    });
+    zn.addTo(predZoneGroup);
+    zn.bindPopup(`
+      <div class="popup-title" style="color:#ce93d8">◈ ${d.name}</div>
+      <div class="popup-row"><span class="popup-key">Base Score</span><span class="popup-val">${d.s100}/100</span></div>
+      <div class="popup-row"><span class="popup-key">Effective Score</span><span class="popup-val" style="color:#ce93d8">${eff.effective}/100</span></div>
+      <div class="popup-row"><span class="popup-key">Propagation Boost</span><span class="popup-val" style="color:#ce93d8">+${eff.boost} pts</span></div>
+      <div class="popup-row"><span class="popup-key">Source</span><span class="popup-val">${boost?.sources[0]?.from||'–'}</span></div>
+      <div class="popup-row"><span class="popup-key">Fiber Distance</span><span class="popup-val">${boost?.sources[0]?.distKm||'–'} km</span></div>
+      <div class="popup-row"><span class="popup-key">Decay</span><span class="popup-val">${boost?.sources[0]?.decay||0}% remaining</span></div>
+      <div class="popup-tag mid" style="background:rgba(206,147,216,.1);border-color:rgba(206,147,216,.4);color:#ce93d8">◈ NO SENSOR — GIS+AI PREDICTED RISK</div>`);
+
+    // Score label
+    L.marker([d.lat,d.lng],{
+      icon:L.divIcon({className:'',
+        html:`<div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#ce93d8;background:rgba(6,11,19,0.9);border:1px solid rgba(206,147,216,0.5);padding:2px 5px;border-radius:3px;white-space:nowrap;">◈ ${eff.effective}</div>`,
+        iconAnchor:[22,28]}),interactive:false
+    }).addTo(predZoneGroup);
+  });
+
+  // Propagation wave rings from each source
+  propagations.forEach(p=>{
+    const age=Date.now()-p.ts;
+    const decay=Math.max(0,1-age/DECAY_MS);
+    if(decay<0.05)return;
+
+    // Three expanding rings
+    [0.3,0.6,1.0].forEach((scale,i)=>{
+      const ringDecay=Math.max(0,decay-(i*0.12));
+      if(ringDecay<0.05)return;
+      L.circle([p.srcLat,p.srcLng],{
+        radius: SPREAD_KM*1000*scale*(p.level===3?1.2:0.8),
+        color:'#ce93d8', weight:1,
+        opacity:ringDecay*0.4,
+        fillColor:'#ce93d8',
+        fillOpacity:ringDecay*0.03,
+        dashArray:'4,6'
+      }).addTo(propWaveGroup);
+    });
+  });
+
+  if(layers.propwaves){
+    predZoneGroup.addTo(map);
+    propWaveGroup.addTo(map);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  LEAFLET MAP  —  CartoDB Voyager enforces English labels
+// ═══════════════════════════════════════════════════════════════
+const map=L.map('map',{center:[10.8505,78.6569],zoom:7,zoomControl:false});
+L.control.zoom({position:'topright'}).addTo(map);
+L.control.attribution({position:'bottomright'}).addTo(map);
+
+const TILES={
+  street:    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+               {maxZoom:19,attribution:'© OpenStreetMap © CARTO'}),
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+               {maxZoom:19,attribution:'© Esri Imagery'}),
+  dark:      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+               {maxZoom:19,attribution:'© CARTO'}),
+  topo:      L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+               {maxZoom:17,attribution:'© OpenTopoMap'}),
+};
+
+// English label overlay for satellite
+const satLabels=L.tileLayer(
+  'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png',
+  {maxZoom:19,opacity:0.9});
+
+TILES.street.addTo(map);
+let currentTile='street', satLabelActive=false;
+
+// ═══════════════════════════════════════════════════════════════
+//  WEATHER + TRAFFIC OVERLAY LAYERS
+//  Using free OpenWeatherMap tile layers (no API key required for tiles)
+//  and OpenStreetMap-based traffic visualization
+// ═══════════════════════════════════════════════════════════════
+
+// OpenWeatherMap free tile layers
+const OWM_KEY = 'bd5e378503939ddaee76f12ad7a97608'; // public demo key
+
+// Weather overlay — cloud cover
+weatherLayer = L.tileLayer(
+  `https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=${OWM_KEY}`,
+  {maxZoom:19, opacity:0.45, attribution:'© OpenWeatherMap'}
+);
+
+// Precipitation layer
+rainLayer = L.tileLayer(
+  `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${OWM_KEY}`,
+  {maxZoom:19, opacity:0.55, attribution:'© OpenWeatherMap'}
+);
+
+// Wind layer
+windLayer = L.tileLayer(
+  `https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${OWM_KEY}`,
+  {maxZoom:19, opacity:0.55, attribution:'© OpenWeatherMap'}
+);
+
+// Traffic — TomTom free traffic flow tiles
+trafficLayer = L.tileLayer(
+  'https://api.tomtom.com/traffic/map/4/tile/flow/relative0-dark/{z}/{x}/{y}.png?key=agFjZLi4rRXGxhJfVhEimkAvkE5uFOx8',
+  {maxZoom:19, opacity:0.7, attribution:'© TomTom Traffic'}
+);
+
+// Traffic incidents
+trafficIncLayer = L.tileLayer(
+  'https://api.tomtom.com/traffic/map/4/tile/incidents/s3/{z}/{x}/{y}.png?key=agFjZLi4rRXGxhJfVhEimkAvkE5uFOx8',
+  {maxZoom:19, opacity:0.85, attribution:'© TomTom Incidents'}
+);
+
+// Add default active overlays
+weatherLayer.addTo(map);
+trafficLayer.addTo(map);
+
+// ═══════════════════════════════════════════════════════════════
+//  TILE SWITCHING
+// ═══════════════════════════════════════════════════════════════
+function setTile(t){
+  if(currentTile===t)return;
+  map.removeLayer(TILES[currentTile]);
+  if(satLabelActive){map.removeLayer(satLabels);satLabelActive=false;}
+  TILES[t].addTo(map);
+  TILES[t].bringToBack();
+  if(t==='satellite'){satLabels.addTo(map);satLabelActive=true;}
+  currentTile=t;
+  document.querySelectorAll('.tile-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tile-'+t).classList.add('active');
+  log(`[MAP] View: ${t.toUpperCase()}`);
+}
+
+function fitTN(){map.flyTo([10.8505,78.6569],7,{duration:1.2});}
+function fitIndia(){map.flyTo([20.5937,78.9629],5,{duration:1.5});}
+
+// ═══════════════════════════════════════════════════════════════
+//  OVERLAY TOGGLES
+// ═══════════════════════════════════════════════════════════════
+const overlayMap = {
+  weather:    {layer: ()=>weatherLayer,   label:'WEATHER', color:'#4a90d9'},
+  rain:       {layer: ()=>rainLayer,      label:'RAIN',    color:'#7ec8e3'},
+  wind:       {layer: ()=>windLayer,      label:'WIND',    color:'#a8d8ea'},
+  traffic:    {layer: ()=>trafficLayer,   label:'TRAFFIC', color:'#ff6b35'},
+  trafficInc: {layer: ()=>trafficIncLayer,label:'INCIDENTS',color:'#ff3333'},
+};
+
+function toggleOverlay(name){
+  overlays[name]=!overlays[name];
+  const sw=document.getElementById('sw-'+name);
+  const info=overlayMap[name];
+  const lyr=info.layer();
+  if(overlays[name]){
+    lyr.addTo(map);
+    sw.classList.add('on');
+    sw.style.background=info.color;
+    log(`[OVERLAY] ${info.label} enabled`);
+  } else {
+    map.removeLayer(lyr);
+    sw.classList.remove('on');
+    sw.style.background='';
+    log(`[OVERLAY] ${info.label} disabled`);
+  }
+  updateOverlayBadge();
+}
+
+function updateOverlayBadge(){
+  const active=Object.entries(overlays).filter(([k,v])=>v);
+  const badge=document.getElementById('overlay-badge');
+  const items=document.getElementById('badge-items');
+  if(active.length===0){badge.style.display='none';return;}
+  badge.style.display='flex';
+  items.innerHTML=active.map(([k])=>{
+    const info=overlayMap[k];
+    return `<div class="wx-badge-item"><div class="wx-badge-dot" style="background:${info.color}"></div><span style="color:${info.color};font-size:8px">${info.label}</span></div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SIMULATED WEATHER DATA (Tamil Nadu climate)
+//  In production: replace with OpenWeatherMap API call
+// ═══════════════════════════════════════════════════════════════
+const TN_CITIES_WX = [
+  {name:'Chennai',   lat:13.08,lng:80.27,temp:33,humid:72,wind:18,cond:'Partly Cloudy',icon:'⛅'},
+  {name:'Coimbatore',lat:11.01,lng:76.96,temp:28,humid:65,wind:12,cond:'Clear',icon:'☀️'},
+  {name:'Madurai',   lat:9.93, lng:78.12,temp:35,humid:58,wind:15,cond:'Sunny',icon:'☀️'},
+  {name:'Trichy',    lat:10.79,lng:78.70,temp:34,humid:61,wind:11,cond:'Hazy',icon:'🌤️'},
+  {name:'Salem',     lat:11.66,lng:78.15,temp:31,humid:68,wind:14,cond:'Cloudy',icon:'☁️'},
+  {name:'Tirunelveli',lat:8.71,lng:77.76,temp:32,humid:74,wind:16,cond:'Humid',icon:'🌦️'},
+];
+
+function renderWeatherMarkers(){
+  TN_CITIES_WX.forEach(c=>{
+    const icon=L.divIcon({
+      className:'',
+      html:`<div style="background:rgba(6,11,19,0.88);border:1px solid rgba(74,144,217,0.5);border-radius:4px;padding:4px 6px;font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a90d9;white-space:nowrap;pointer-events:none;">
+        ${c.icon} ${c.temp}°C | ${c.humid}% | ${c.wind}km/h
+      </div>`,
+      iconAnchor:[40,10],
+    });
+    L.marker([c.lat,c.lng],{icon,interactive:true,zIndex:500})
+     .bindPopup(`
+       <div class="popup-title">${c.name} — Weather</div>
+       <div class="popup-row"><span class="popup-key">Condition</span><span class="popup-val blue">${c.icon} ${c.cond}</span></div>
+       <div class="popup-row"><span class="popup-key">Temperature</span><span class="popup-val">${c.temp}°C</span></div>
+       <div class="popup-row"><span class="popup-key">Humidity</span><span class="popup-val ${c.humid>70?'orange':'green'}">${c.humid}%</span></div>
+       <div class="popup-row"><span class="popup-key">Wind</span><span class="popup-val">${c.wind} km/h</span></div>
+       <div class="popup-row"><span class="popup-key">Excavation Risk</span><span class="popup-val ${c.humid>70?'orange':'green'}">${c.humid>70?'ELEVATED — Wet soil':'NORMAL'}</span></div>
+       <div class="popup-tag ${c.humid>70?'mid':'ok'}">${c.humid>70?'HIGH HUMIDITY — MONITOR CLOSELY':'CONDITIONS NORMAL'}</div>`)
+     .addTo(map);
+  });
+  // Update sidebar weather card
+  const c=TN_CITIES_WX[0];
+  document.getElementById('wx-temp').textContent=c.temp+'°C';
+  document.getElementById('wx-humid').textContent=c.humid+'%';
+  document.getElementById('wx-wind').textContent=c.wind+' km/h';
+  document.getElementById('wx-cond').textContent=c.cond;
+  document.getElementById('rt-temp').textContent=c.temp+'°C';
+  document.getElementById('rt-wind').textContent=c.wind+' km/h NE';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BUILD MAP LAYERS
+// ═══════════════════════════════════════════════════════════════
+function buildMapLayers(){
+  [fiberGroup,highGroup,midGroup,lowGroup,sensorGroup,alertGroup].forEach(g=>{if(g)map.removeLayer(g);});
+  fiberGroup=L.layerGroup();
+  highGroup=L.layerGroup();
+  midGroup=L.layerGroup();
+  lowGroup=L.layerGroup();
+  sensorGroup=L.layerGroup();
+  alertGroup=L.layerGroup();
+
+  // ── FIBER ROUTES ──
+  FIBER_ROUTES.forEach(r=>{
+    // Outer glow
+    L.polyline(r.pts,{color:r.color,weight:r.w*5,opacity:0.05,smoothFactor:2,lineJoin:'round'}).addTo(fiberGroup);
+    L.polyline(r.pts,{color:r.color,weight:r.w*2,opacity:0.18,smoothFactor:2,lineJoin:'round'}).addTo(fiberGroup);
+    // Core line
+    const ln=L.polyline(r.pts,{color:r.color,weight:r.w,opacity:0.9,smoothFactor:2,lineJoin:'round'});
+    ln.addTo(fiberGroup);
+    ln.bindPopup(`
+      <div class="popup-title">OPTICAL FIBER ROUTE</div>
+      <div class="popup-row"><span class="popup-key">Route</span><span class="popup-val blue">${r.name}</span></div>
+      <div class="popup-row"><span class="popup-key">Network</span><span class="popup-val">BharatNet / BSNL</span></div>
+      <div class="popup-row"><span class="popup-key">Status</span><span class="popup-val green">ACTIVE — PROTECTED</span></div>
+      <div class="popup-tag ok">TANFINET MONITORING ACTIVE</div>`);
+    // Endpoint dots
+    [r.pts[0],r.pts[r.pts.length-1]].forEach(pt=>{
+      L.circleMarker(pt,{radius:3,color:r.color,fillColor:r.color,fillOpacity:0.8,weight:1}).addTo(fiberGroup);
+    });
+  });
+
+  // ── RISK ZONES ──
+  riskData.forEach(d=>{
+    const isH=d.level==='H',isM=d.level==='M';
+    const col=isH?'#ff3333':isM?'#ff9500':'#00e676';
+    const r=isH?22000:isM?14000:8000;
+    const grp=isH?highGroup:isM?midGroup:lowGroup;
+    const lbl=isH?'HIGH':isM?'MEDIUM':'LOW';
+
+    // Heatmap glow
+    L.circle([d.lat,d.lng],{radius:r*2.2,color:'transparent',fillColor:col,fillOpacity:isH?0.10:isM?0.06:0.03}).addTo(grp);
+    // Ring
+    const zn=L.circle([d.lat,d.lng],{
+      radius:r,color:col,weight:isH?2:1,opacity:isH?0.85:isM?0.55:0.35,
+      fillColor:col,fillOpacity:isH?0.09:isM?0.05:0.03,
+      dashArray:isH?null:isM?'6,4':'3,5',
+    });
+    zn.addTo(grp);
+    zn.bindPopup(`
+      <div class="popup-title">${d.name}</div>
+      <div class="popup-row"><span class="popup-key">Risk Score</span><span class="popup-val ${isH?'red':isM?'orange':'green'}">${d.s100}/100</span></div>
+      <div class="popup-row"><span class="popup-key">Risk Level</span><span class="popup-val ${isH?'red':isM?'orange':'green'}">${lbl} RISK</span></div>
+      <div class="popup-row"><span class="popup-key">Road Crossing</span><span class="popup-val">${d.road?'YES':'No'}</span></div>
+      <div class="popup-row"><span class="popup-key">Construction</span><span class="popup-val">${['None','Active','Heavy'][d.con]||'-'}</span></div>
+      <div class="popup-row"><span class="popup-key">Railway</span><span class="popup-val">${d.rail?'YES':'No'}</span></div>
+      <div class="popup-row"><span class="popup-key">Past Incidents</span><span class="popup-val ${isH?'red':isM?'orange':'green'}">${d.inc} recorded</span></div>
+      <div class="popup-tag ${isH?'high':isM?'mid':'ok'}">${isH?'SENSOR REQUIRED — DEPLOY NOW':isM?'MONITORING RECOMMENDED':'LOW PRIORITY ZONE'}</div>`);
+    if(isH){
+      L.marker([d.lat,d.lng],{
+        icon:L.divIcon({className:'',
+          html:`<div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#ff3333;background:rgba(6,11,19,0.92);border:1px solid rgba(255,51,51,0.6);padding:2px 5px;border-radius:3px;white-space:nowrap;font-weight:bold;">HIGH ${d.s100}</div>`,
+          iconAnchor:[24,28]}),interactive:false
+      }).addTo(grp);
+    }
+  });
+
+  // ── SENSOR NODES ──
+  SENSOR_NODES.forEach(n=>{
+    const col=n.risk>=80?'#ff3333':n.risk>=65?'#ff9500':'#00e676';
+    const st=nodeAlertState[n.id]||'online';
+    const sz=n.risk>=80?10:8;
+    const icon=L.divIcon({
+      className:'',
+      html:`<div style="width:${sz*2}px;height:${sz*2}px;border-radius:50%;background:${col};border:2px solid rgba(255,255,255,0.6);box-shadow:0 0 ${n.risk>=80?16:8}px ${col};${st==='alert'?'animation:blink 0.6s infinite;':''}"></div>`,
+      iconSize:[sz*2,sz*2],iconAnchor:[sz,sz],
+    });
+    const mk=L.marker([n.lat,n.lng],{icon,zIndex:1000});
+    mk.addTo(sensorGroup);
+    mk.bindPopup(`
+      <div class="popup-title">${n.id}</div>
+      <div class="popup-row"><span class="popup-key">Location</span><span class="popup-val">${n.loc}</span></div>
+      <div class="popup-row"><span class="popup-key">Risk Score</span><span class="popup-val ${n.risk>=80?'red':n.risk>=65?'orange':'green'}">${n.risk}/100</span></div>
+      <div class="popup-row"><span class="popup-key">Status</span><span class="popup-val green">${st.toUpperCase()}</span></div>
+      <div class="popup-row"><span class="popup-key">Hardware</span><span class="popup-val">Heltec WiFi LoRa 32</span></div>
+      <div class="popup-row"><span class="popup-key">Frequency</span><span class="popup-val blue">433 MHz LoRa SF10</span></div>
+      <div class="popup-row"><span class="popup-key">Battery</span><span class="popup-val green">1-2 Years</span></div>
+      <div class="popup-tag ${n.risk>=80?'high':n.risk>=65?'mid':'ok'}">ACTIVE SENSOR — MONITORING</div>`);
+    L.marker([n.lat,n.lng],{
+      icon:L.divIcon({className:'',
+        html:`<div style="font-family:'Share Tech Mono',monospace;font-size:8px;color:${col};white-space:nowrap;padding-top:${sz*2+2}px;padding-left:${sz+2}px;">${n.id}</div>`,
+        iconAnchor:[-2,-3]}),interactive:false
+    }).addTo(sensorGroup);
+  });
+
+  if(layers.fiber)   fiberGroup.addTo(map);
+  if(layers.high)    highGroup.addTo(map);
+  if(layers.mid)     midGroup.addTo(map);
+  if(layers.low)     lowGroup.addTo(map);
+  if(layers.sensors) sensorGroup.addTo(map);
+  alertGroup.addTo(map);
+}
+
+function toggleLayer(name){
+  layers[name]=!layers[name];
+  document.getElementById('sw-'+name).classList.toggle('on',layers[name]);
+  const gMap={fiber:fiberGroup,high:highGroup,mid:midGroup,low:lowGroup,sensors:sensorGroup,alerts:alertGroup};
+  if(name==='propwaves'){
+    if(layers.propwaves){
+      if(predZoneGroup)predZoneGroup.addTo(map);
+      if(propWaveGroup)propWaveGroup.addTo(map);
+    } else {
+      if(predZoneGroup)map.removeLayer(predZoneGroup);
+      if(propWaveGroup)map.removeLayer(propWaveGroup);
+    }
+    return;
+  }
+  const grp=gMap[name];if(!grp)return;
+  layers[name]?grp.addTo(map):map.removeLayer(grp);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RISK CALCULATION
+// ═══════════════════════════════════════════════════════════════
+function calcRisk(pts,wts){
+  const wSum=Object.values(wts).reduce((a,b)=>a+b,0);
+  const nw={};Object.keys(wts).forEach(k=>nw[k]=wts[k]/(wSum||1));
+  return pts.map(p=>{
+    const n={road:p.road/MAX.road,con:p.con/MAX.con,metro:p.metro/MAX.metro,rail:p.rail/MAX.rail,inc:p.inc/MAX.inc,soil:p.soil/MAX.soil};
+    const score=Object.keys(nw).reduce((s,k)=>s+n[k]*nw[k],0);
+    const s100=Math.round(score*1000)/10;
+    return{...p,n,score,s100,level:s100>=70?'H':s100>=40?'M':'L'};
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  UI RENDERING
+// ═══════════════════════════════════════════════════════════════
+function buildAnalyze(){
+  riskData=calcRisk(RAW_POINTS,WEIGHTS);
+  renderRiskTable(riskData);renderPlacementGuide(riskData);
+  renderCostSavings(riskData);renderFactorBreakdown(riskData);
+  renderRecBox(riskData);buildMapLayers();
+  setTimeout(renderRiskChart,80);
+}
+
+function renderRiskTable(data){
+  const sorted=[...data].sort((a,b)=>effectiveLevel(b).effective-effectiveLevel(a).effective);
+  const cM={H:'var(--danger)',M:'var(--warn)',L:'var(--safe)',P:'#ce93d8'};
+  document.getElementById('risk-table').innerHTML=sorted.map((d,i)=>{
+    const eff=effectiveLevel(d);
+    const col=cM[eff.level];
+    const badge=eff.predicted
+      ?`<span class="rr-bd P" title="GIS+AI predicted — no sensor here">◈P</span>`
+      :`<span class="rr-bd ${d.level}">${d.level}</span>`;
+    return `<div class="risk-row" onclick="map.flyTo([${d.lat},${d.lng}],12,{duration:1})">
+      <span class="rr-rank">${i+1}</span>
+      <span class="rr-name" title="${d.name}">${d.name}</span>
+      <div class="rr-bw"><div class="rr-bf" style="width:${eff.effective}%;background:${col}"></div></div>
+      <span class="rr-sc" style="color:${col}">${eff.effective}</span>
+      ${badge}
+    </div>`;
+  }).join('');
+}
+
+function renderPlacementGuide(data){
+  const h=data.filter(d=>d.level==='H');
+  document.getElementById('placement-guide').innerHTML=
+    h.map(d=>`<div style="display:flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px solid var(--border)">
+      <div style="width:5px;height:5px;border-radius:50%;background:var(--danger);flex-shrink:0"></div>
+      <span style="font-size:10px">${d.name}</span>
+      <span style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--danger)">${d.s100}</span>
+    </div>`).join('');
+}
+
+function renderCostSavings(data){
+  const h=data.filter(d=>d.level==='H').length,t=data.length;
+  const saved=Math.round((1-h/t)*100);
+  document.getElementById('cost-savings').innerHTML=
+    `<div style="color:var(--muted)">Full coverage:</div>
+     <div style="color:var(--danger)">Rs.${(t*1110).toLocaleString()} (${t} nodes)</div>
+     <div style="color:var(--muted);margin-top:3px">Smart deploy:</div>
+     <div style="color:var(--safe)">Rs.${(h*1110).toLocaleString()} (${h} nodes)</div>
+     <div style="margin-top:5px;color:var(--accent)">Saving: ${saved}%</div>`;
+}
+
+function renderFactorBreakdown(data){
+  const avg={};Object.keys(WEIGHTS).forEach(k=>avg[k]=data.reduce((s,d)=>s+d.n[k],0)/data.length);
+  document.getElementById('factor-breakdown').innerHTML=
+    Object.entries(WEIGHTS).map(([k,w])=>{
+      const c=avg[k]>.6?'var(--danger)':avg[k]>.35?'var(--warn)':'var(--safe)';
+      return `<div class="tbar-row">
+        <span class="tbar-lbl">${WLABELS[k]}</span>
+        <div class="tbar-track"><div class="tbar-fill" style="width:${Math.round(avg[k]*100)}%;background:${c}"></div></div>
+        <span class="tbar-num" style="color:${c}">${Math.round(w*100)}%</span></div>`;
+    }).join('');
+}
+
+function renderRecBox(data){
+  const h=data.filter(d=>d.level==='H');
+  const m=data.filter(d=>d.level==='M');
+  const l=data.filter(d=>d.level==='L');
+  document.getElementById('rec-box').innerHTML=
+    `<span style="color:var(--danger)">HIGH: ${h.length} zones — Deploy sensors NOW</span><br/>
+     <span style="color:var(--warn)">MEDIUM: ${m.length} zones — Monitor closely</span><br/>
+     <span style="color:var(--safe)">LOW: ${l.length} zones — No sensor needed</span>`;
+}
+
+function renderRiskChart(){
+  const c=document.getElementById('risk-chart');if(!c||!riskData.length)return;
+  c.width=c.offsetWidth;c.height=c.offsetHeight;
+  const x=c.getContext('2d');const W=c.width,H=c.height;
+  x.fillStyle='#09101f';x.fillRect(0,0,W,H);
+  const sorted=[...riskData].sort((a,b)=>b.s100-a.s100).slice(0,22);
+  const bw=Math.max(3,Math.floor((W-18)/sorted.length)-2);
+  const cM={H:'#ff3333',M:'#ff9500',L:'#00e676'};
+  [25,50,75,100].forEach(v=>{
+    const y=H-18-(v/100)*(H-26);
+    x.strokeStyle='rgba(23,32,53,0.8)';x.lineWidth=0.5;
+    x.beginPath();x.moveTo(8,y);x.lineTo(W-4,y);x.stroke();
+    x.fillStyle='#3a5068';x.font='7px Share Tech Mono,monospace';
+    x.textAlign='right';x.fillText(v,7,y+3);
+  });
+  sorted.forEach((d,i)=>{
+    const px=10+i*(bw+2),bh=(d.s100/100)*(H-26),py=H-18-bh,col=cM[d.level];
+    x.fillStyle=col+'bb';x.fillRect(px,py,bw,bh);
+    x.strokeStyle=col;x.lineWidth=0.5;x.strokeRect(px,py,bw,bh);
+    x.fillStyle='#3a5068';x.font='6px Share Tech Mono,monospace';
+    x.textAlign='center';x.fillText(d.name.slice(0,5),px+bw/2,H-5);
+  });
+}
+
+function renderAlertChart(){
+  const c=document.getElementById('alert-chart');if(!c)return;
+  c.width=c.offsetWidth;c.height=c.offsetHeight;
+  const x=c.getContext('2d');const W=c.width,H=c.height;
+  x.fillStyle='#09101f';x.fillRect(0,0,W,H);
+  if(!alertHistory.length){x.fillStyle='#3a5068';x.font='9px Share Tech Mono,monospace';x.textAlign='center';x.fillText('No alerts yet',W/2,H/2);return;}
+  const recent=alertHistory.slice(-10);const bw=Math.floor((W-20)/10)-2;
+  const cM={3:'#ff3333',2:'#ff9500',1:'#64b5f6'};
+  recent.forEach((a,i)=>{
+    const px=12+i*(bw+2),bh=(a.level/3)*(H-20),py=H-14-bh,col=cM[a.level];
+    x.fillStyle=col+'cc';x.fillRect(px,py,bw,bh);
+    x.strokeStyle=col;x.lineWidth=0.5;x.strokeRect(px,py,bw,bh);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MODE / FILTER / ALERTS
+// ═══════════════════════════════════════════════════════════════
+function switchMode(m){
+  mode=m;
+  ['analyze','monitor'].forEach(v=>{
+    document.getElementById('tab-'+v).classList.toggle('active',m===v);
+    document.getElementById('panel-'+v).style.display=m===v?'flex':'none';
+    document.getElementById('rp-'+v).style.display=m===v?'block':'none';
+  });
+
+  // Collapse non-essential sidebar sections in monitor mode to maximise alert feed space
+  const collapse = m==='monitor';
+  ['sb-mapview','sb-overlays','wx-summary','sb-layers'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display=collapse?'none':'';
+  });
+
+  if(m==='analyze')setTimeout(renderRiskChart,80);
+  if(m==='monitor')setTimeout(renderAlertChart,80);
+  log(`[SYS] Mode: ${m.toUpperCase()}`);
+}
+
+function buildSliders(){
+  document.getElementById('sliders').innerHTML=
+    Object.entries(WEIGHTS).map(([k,v])=>`
+      <div class="sl-row">
+        <div class="sl-hdr"><span>${WLABELS[k]}</span><span class="sl-val" id="sv-${k}">${Math.round(v*100)}%</span></div>
+        <input type="range" min="0" max="50" value="${Math.round(v*100)}" oninput="updateW('${k}',this.value)"/>
+      </div>`).join('');
+}
+function updateW(k,v){WEIGHTS[k]=parseInt(v)/100;document.getElementById('sv-'+k).textContent=v+'%';}
+function recalculate(){buildAnalyze();log('[AI] Risk scores recalculated');}
+
+function setFilter(f){
+  alertFilter=f;
+  document.querySelectorAll('.fp').forEach(e=>e.classList.remove('active'));
+  document.querySelector(`.fp.${f}`).classList.add('active');
+  document.querySelectorAll('#alert-feed .ac').forEach(card=>{
+    if(f==='all'){card.classList.remove('hidden');return;}
+    if(f==='crit')card.classList.toggle('hidden',!card.classList.contains('lv3'));
+    else if(f==='warn')card.classList.toggle('hidden',!card.classList.contains('lv2'));
+    else if(f==='pred')card.classList.toggle('hidden',!card.classList.contains('lvP'));
+  });
+}
+
+function demoAlert(level){
+  const node=SENSOR_NODES[Math.floor(Math.random()*SENSOR_NODES.length)];
+  const rms=(level===3?9+Math.random()*4:5+Math.random()*3).toFixed(2);
+  const types=level===3?THREAT_H:THREAT_M;
+  const type=types[Math.floor(Math.random()*types.length)];
+  const a={
+    node_id:node.id,location:node.loc,
+    lat:node.lat+(Math.random()-.5)*.008,lng:node.lng+(Math.random()-.5)*.008,
+    threat_type:type,level,rms,
+    confidence:(88+Math.random()*11).toFixed(1),
+    time_str:new Date().toLocaleTimeString(),ts:Date.now()
+  };
+  liveAlerts.push(a);if(liveAlerts.length>20)liveAlerts.shift();
+
+  // ── TRIGGER PROPAGATION ENGINE ──
+  triggerPropagation(a);
+
+  const col=THREAT_COL[type]||'#ff9500';
+  const ai=L.divIcon({
+    className:'',
+    html:`<div style="width:${level===3?20:14}px;height:${level===3?20:14}px;border-radius:50%;background:${col};border:2px solid white;box-shadow:0 0 18px ${col};animation:blink 0.5s infinite;"></div>`,
+    iconSize:[20,20],iconAnchor:[10,10],
+  });
+  const am=L.marker([a.lat,a.lng],{icon:ai,zIndex:2000});
+  am.addTo(alertGroup);
+  am.bindPopup(`
+    <div class="popup-title" style="color:${col}">${type.replace('_',' ')} DETECTED</div>
+    <div class="popup-row"><span class="popup-key">Node</span><span class="popup-val">${node.id}</span></div>
+    <div class="popup-row"><span class="popup-key">Location</span><span class="popup-val">${node.loc}</span></div>
+    <div class="popup-row"><span class="popup-key">Threat Level</span><span class="popup-val ${level===3?'red':'orange'}">LEVEL ${level} — ${level===3?'CRITICAL':'WARNING'}</span></div>
+    <div class="popup-row"><span class="popup-key">AI Confidence</span><span class="popup-val green">${a.confidence}%</span></div>
+    <div class="popup-row"><span class="popup-key">RMS Vibration</span><span class="popup-val">${rms}g</span></div>
+    <div class="popup-row"><span class="popup-key">Time</span><span class="popup-val">${a.time_str}</span></div>
+    <div class="popup-tag ${level===3?'high':'mid'}">CNN-LSTM — ${level===3?'DISPATCH CREW NOW':'ALERT NOC TEAM'}</div>`);
+  am.openPopup();
+  map.flyTo([a.lat,a.lng],12,{duration:1});
+
+  const feed=document.getElementById('alert-feed');
+  feed.querySelector('.empty-msg')?.remove();
+  const lvc=`lv${level}`;
+  const card=document.createElement('div');
+  card.className=`ac ${lvc}`;
+  card.innerHTML=`
+    <div class="ac-top"><span class="ac-type ${lvc}">${type.replace('_',' ')}</span><span class="ac-time">${a.time_str}</span></div>
+    <div class="ac-node">${node.id}</div>
+    <div class="ac-loc">${node.loc}</div>
+    <div class="ac-meta">Conf: ${a.confidence}% | RMS: ${rms}g</div>
+    <span class="lvb ${lvc}">LEVEL ${level}</span>`;
+  card.onclick=()=>map.flyTo([a.lat,a.lng],13,{duration:0.8});
+  feed.insertBefore(card,feed.firstChild);
+  while(feed.children.length>30)feed.removeChild(feed.lastChild);
+
+  // update count badge + scroll hint
+  const cardCount=feed.querySelectorAll('.ac:not(.hidden)').length;
+  const badge=document.getElementById('feed-count');
+  const hint=document.getElementById('scroll-hint');
+  if(badge){badge.textContent=cardCount;badge.style.display=cardCount>0?'inline-block':'none';}
+  if(hint){hint.style.display=cardCount>4?'flex':'none';}
+
+  if(level===3){critCnt++;document.getElementById('cnt-crit').textContent=critCnt;}
+  if(level===2){warnCnt++;document.getElementById('cnt-warn').textContent=warnCnt;}
+  threatCnt[type]=(threatCnt[type]||0)+1;renderThreatBars();
+  nodeAlertState[node.id]='alert';buildNodeList();
+  setTimeout(()=>{nodeAlertState[node.id]='online';buildNodeList();},8000);
+  alertHistory.push({level,ts:Date.now()});if(alertHistory.length>20)alertHistory.shift();
+  if(mode==='monitor')setTimeout(renderAlertChart,50);
+  if(mode!=='monitor')switchMode('monitor');
+  log(`[ALERT] ${node.id} | ${type} | Lv${level} | ${node.loc}`);
+
+  // Only inject a predicted card for Level 3 (critical) alerts
+  // and only if there isn't already one in the feed
+  if(level===3){
+    setTimeout(()=>{
+      const feed=document.getElementById('alert-feed');
+      // If any predicted card already exists in the feed, don't add another
+      if(feed.querySelector('.ac.lvP'))return;
+
+      // Pick only the single highest-scoring predicted zone
+      const affected=riskData
+        .map(d=>({d,eff:effectiveLevel(d)}))
+        .filter(({eff})=>eff.predicted)
+        .sort((a,b)=>b.eff.effective-a.eff.effective);
+
+      if(!affected.length)return;
+
+      const {d,eff}=affected[0];
+      const boost=zoneBoosts[d.name];
+      if(!boost)return;
+      const src=boost.sources[0];
+      const card=document.createElement('div');
+      card.className='ac lvP';
+      card.style.borderLeftColor='#ce93d8';
+      card.innerHTML=`
+        <div class="ac-top"><span class="ac-type lvP" style="color:#ce93d8">◈ PREDICTED RISK</span><span class="ac-time">${new Date().toLocaleTimeString()}</span></div>
+        <div class="ac-node" style="color:#ce93d8">GIS+AI · No Sensor Deployed</div>
+        <div class="ac-loc">${d.name}</div>
+        <div class="ac-meta">Score: ${eff.effective}/100 · Boost: +${eff.boost}pts · ${src?`from ${src.from} @ ${src.distKm}km`:''}</div>
+        <span class="lvb" style="background:rgba(206,147,216,.18);color:#ce93d8">PREDICTED</span>`;
+      card.onclick=()=>map.flyTo([d.lat,d.lng],12,{duration:0.8});
+      feed.insertBefore(card,feed.firstChild);
+      log(`[PROP] Predicted risk flagged: ${d.name} (score ${eff.effective})`);
+    },900);
+  }
+}
+
+function clearAll(){
+  liveAlerts=[];threatCnt={};critCnt=0;warnCnt=0;alertHistory=[];
+  propagations=[];zoneBoosts={};
+  document.getElementById('cnt-crit').textContent='0';
+  document.getElementById('cnt-warn').textContent='0';
+  document.getElementById('cnt-pred').textContent='0';
+  document.getElementById('alert-feed').innerHTML='<div class="empty-msg">Alerts cleared.<br/>System monitoring...</div>';
+  const b=document.getElementById('feed-count');if(b){b.textContent='0';b.style.display='none';}
+  const h=document.getElementById('scroll-hint');if(h)h.style.display='none';
+  if(alertGroup)alertGroup.clearLayers();
+  if(predZoneGroup)map.removeLayer(predZoneGroup);
+  if(propWaveGroup)map.removeLayer(propWaveGroup);
+  document.getElementById('prop-box').classList.remove('show');
+  renderThreatBars();buildNodeList();setTimeout(renderAlertChart,50);
+  SENSOR_NODES.forEach(n=>nodeAlertState[n.id]='online');
+  updatePropagationUI();
+  log('[SYS] All alerts and propagations cleared');
+}
+
+function renderThreatBars(){
+  const entries=Object.entries(threatCnt).sort((a,b)=>b[1]-a[1]);
+  const maxV=entries[0]?entries[0][1]:1;
+  document.getElementById('threat-bars').innerHTML=entries.length
+    ?entries.map(([t,c])=>`<div class="tbar-row">
+        <span class="tbar-lbl" style="color:${THREAT_COL[t]}">${t.replace('_',' ')}</span>
+        <div class="tbar-track"><div class="tbar-fill" style="width:${Math.round(c/maxV*100)}%;background:${THREAT_COL[t]}"></div></div>
+        <span class="tbar-num">${c}x</span></div>`).join('')
+    :'<span style="color:var(--muted);font-size:10px">No threats yet.</span>';
+}
+
+function buildNodeList(){
+  document.getElementById('node-list').innerHTML=SENSOR_NODES.map(n=>{
+    const st=nodeAlertState[n.id]||'online';
+    return `<div class="nrow"><span class="nid">${n.id}</span><div class="nst"><div class="nd ${st}"></div><span style="color:var(--muted)">${st}</span></div></div>`;
+  }).join('');
+}
+
+function log(msg){
+  const el=document.getElementById('syslog');
+  el.innerHTML=`[${new Date().toLocaleTimeString()}] ${msg}<br/>`+el.innerHTML;
+  const lines=el.innerHTML.split('<br/>');
+  if(lines.length>20)el.innerHTML=lines.slice(0,20).join('<br/>');
+}
+
+function updatePredCounter(){
+  const n=riskData.filter(d=>effectiveLevel(d).predicted).length;
+  document.getElementById('cnt-pred').textContent=n;
+}
+
+function updatePropagationUI(){
+  const affected=riskData.filter(d=>effectiveLevel(d).predicted);
+
+  // ── Right panel: predicted zones list ──
+  const el=document.getElementById('prop-zones-panel');
+  if(affected.length===0){
+    el.innerHTML='<span style="color:var(--muted)">No propagation active.<br/>Fire a Critical alert to see GIS+AI prediction.</span>';
+    document.getElementById('prop-box').classList.remove('show');
+  } else {
+    el.innerHTML=affected.map(d=>{
+      const eff=effectiveLevel(d);
+      const src=zoneBoosts[d.name]?.sources[0];
+      return `<div class="prop-zone-row">
+        <div>
+          <div style="font-family:var(--mono);font-size:9px;color:#ce93d8">◈ ${d.name}</div>
+          <div style="font-size:8px;color:var(--muted);margin-top:1px">${src?`${src.from} · ${src.distKm}km`:'–'}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:var(--mono);font-size:10px;color:#ce93d8">${eff.effective}</div>
+          <div style="font-size:8px;color:var(--muted)">+${eff.boost}pts</div>
+        </div>
+      </div>`;
+    }).join('');
+    // Sidebar summary
+    document.getElementById('prop-box').classList.add('show');
+    document.getElementById('prop-summary').innerHTML=
+      `<span style="color:#ce93d8">${affected.length} green zone${affected.length>1?'s':''} elevated by neighbor activity.</span><br/>
+       <span style="color:var(--muted);font-size:10px">${affected.map(d=>d.name).join(' · ')}</span>`;
+  }
+
+  // ── Right panel: decay timers ──
+  const decayEl=document.getElementById('decay-panel');
+  if(!propagations.length){
+    decayEl.innerHTML='<span style="color:var(--muted)">No active propagation.</span>';
+  } else {
+    const now=Date.now();
+    decayEl.innerHTML=propagations.map(p=>{
+      const rem=Math.max(0,DECAY_MS-(now-p.ts));
+      const pct=rem/DECAY_MS*100;
+      return `<div style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="color:#ce93d8;font-size:9px;font-family:var(--mono)">◈ ${p.srcName}</span>
+          <span style="font-family:var(--mono);font-size:8px;color:var(--muted)">Lv${p.level} · ${(rem/1000).toFixed(0)}s</span>
+        </div>
+        <div class="decay-bar"><div class="decay-fill" style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('');
+  }
+
+  // Re-render risk table so predicted badges update live
+  if(mode==='analyze') renderRiskTable(riskData);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════════
+window.addEventListener('load',()=>{
+  SENSOR_NODES.forEach(n=>nodeAlertState[n.id]='online');
+  buildSliders();
+  buildAnalyze();
+  buildNodeList();
+  renderWeatherMarkers();
+  updateOverlayBadge();
+  setInterval(()=>{
+    document.getElementById('clock').textContent=
+      new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  },1000);
+  log('[SYS] TANFINET v7 — Neighbor Propagation Engine active');
+  log('[MAP] 40+ corrected fiber routes loaded');
+  log('[WX]  OpenWeatherMap cloud/rain/wind layers active');
+  log('[TRF] TomTom traffic flow + incidents active');
+  log('[SAT] Satellite view includes English label overlay');
+  log('[PROP] GIS+AI green zone prediction ready');
+
+  // Propagation engine runs every 1.5s — updates waves and zone boosts
+  setInterval(()=>{
+    if(riskData.length>0){
+      computeAndRenderPropagation();
+    }
+  }, 1500);
+});
+
+window.addEventListener('resize',()=>{setTimeout(()=>{renderRiskChart();renderAlertChart();},100);});
+</script>
+</body>
+</html>

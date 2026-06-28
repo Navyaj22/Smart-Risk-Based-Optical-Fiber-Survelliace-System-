@@ -1,0 +1,102 @@
+#include <Wire.h>
+
+#define WAKE_PIN PA0
+#define VIBRATION_PIN PA1   // ⚠ Change to different pin!
+#define ACTIVE_DURATION 10000
+#define MPU6050_ADDR 0x68
+#define VIB_THRESHOLD 1500
+#define MOVEMENT_THRESHOLD 1.5
+
+int16_t Accel_X_RAW, Accel_Y_RAW, Accel_Z_RAW;
+float Ax, Ay, Az;
+
+volatile bool wakeFlag = false;
+bool systemActive = false;
+unsigned long activeStartTime = 0;
+
+void wakeISR() {
+  wakeFlag = true;
+}
+
+void setup() {
+  Serial.begin(115200);
+  Serial1.begin(9600);
+
+  pinMode(WAKE_PIN, INPUT);
+  pinMode(VIBRATION_PIN, INPUT);
+
+  attachInterrupt(digitalPinToInterrupt(WAKE_PIN), wakeISR, RISING);
+
+  Serial.println("System Ready");
+}
+
+void loop() {
+
+  // ================= SLEEP =================
+  if (!systemActive) {
+
+    wakeFlag = false;
+    Serial.println("Sleeping...");
+    delay(50);
+
+    asm("wfi");   // Sleep here
+
+    if (wakeFlag) {
+      systemActive = true;
+      activeStartTime = millis();
+
+      // Initialize MPU only when waking
+      Wire.begin();
+      Wire.beginTransmission(MPU6050_ADDR);
+      Wire.write(0x6B);
+      Wire.write(0);
+      Wire.endTransmission(true);
+
+      Serial.println("HIGH detected → System ON");
+    }
+  }
+
+  // ================= ACTIVE =================
+  if (systemActive) {
+
+    // Read MPU6050
+    Wire.beginTransmission(MPU6050_ADDR);
+    Wire.write(0x3B);
+    Wire.endTransmission(false);
+    Wire.requestFrom(MPU6050_ADDR, 6, true);
+
+    if (Wire.available() == 6) {
+      Accel_X_RAW = Wire.read() << 8 | Wire.read();
+      Accel_Y_RAW = Wire.read() << 8 | Wire.read();
+      Accel_Z_RAW = Wire.read() << 8 | Wire.read();
+
+      Ax = Accel_X_RAW / 16384.0;
+      Ay = Accel_Y_RAW / 16384.0;
+      Az = Accel_Z_RAW / 16384.0;
+    }
+
+    int vibration_value = analogRead(VIBRATION_PIN);
+
+    Serial.print("Ax: "); Serial.print(Ax);
+    Serial.print(" Ay: "); Serial.print(Ay);
+    Serial.print(" Az: "); Serial.print(Az);
+    Serial.print(" | Vib: "); Serial.println(vibration_value);
+
+    if (vibration_value > VIB_THRESHOLD) {
+      Serial.println("!!! IMPACT DETECTED !!!");
+    }
+
+    if (abs(Ax) > MOVEMENT_THRESHOLD ||
+        abs(Ay) > MOVEMENT_THRESHOLD ||
+        abs(Az - 1.0) > MOVEMENT_THRESHOLD) {
+      Serial.println("!!! THEFT DETECTED !!!");
+    }
+
+    if (millis() - activeStartTime >= ACTIVE_DURATION) {
+      Serial.println("10 sec complete → Going to Sleep");
+      systemActive = false;
+    }
+
+    delay(300);
+  }
+}
