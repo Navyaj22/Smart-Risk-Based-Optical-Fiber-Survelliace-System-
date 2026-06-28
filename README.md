@@ -35,8 +35,8 @@ This project was developed as part of a hackathon/academic project to address ch
 
 ##  Repository Contents
 
-- `index.html` – Complete dashboard source code
-- `Project_Presentation.pptx` – Project presentation
+- `Interference dashboard.html` – Complete dashboard source code
+- `interference final.pptx` – Project presentation
 
 ---
 
